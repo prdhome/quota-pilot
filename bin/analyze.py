@@ -202,10 +202,10 @@ def suggest(st, th):
                 add("WEEKEND", "↓", f"{NAME[p]} 週期結束時平均剩 {avg:.0f}%：降低週末清倉的盈餘門檻，讓清倉更早觸發。")
             if min(e["left"] for e in ends) <= 3:
                 if p == "claude":
-                    add("DEFICIT", "↓", "Claude 曾在週期結束前見底（剩 ≤3%）：吃緊門檻放寬，更早改 Sonnet／派工。")
+                    add("DEFICIT", "↓", "Claude 曾在週期結束前見底（剩 ≤3%）：調小 DEFICIT，盈餘還沒掉那麼深就判吃緊，更早改 Sonnet／派工。")
                     add("LEFT_MIN", "↑", "同上：週剩量的保底提高，更早判吃緊。")
                 else:
-                    add("CODEX_DEFICIT", "↓", "Codex 曾在週期結束前見底（剩 ≤3%）：吃緊門檻放寬，更早停止派工。")
+                    add("CODEX_DEFICIT", "↓", "Codex 曾在週期結束前見底（剩 ≤3%）：調小 CODEX_DEFICIT，更早判吃緊、停止派工。")
                     add("LEFT_TIGHT", "↑", "同上：週剩量的保底提高（兩邊共用）。")
     sw = st["switches"]
     if sw["max_per_day"] >= 6 or sw["flaps"] >= 3:
@@ -287,7 +287,10 @@ def report(st):
     L += [table(["", "週期結束", "剩", "判讀", "備註"], rows) if rows else "（期間內沒有自然結束的週期）", ""]
     for p in PROV:
         c = st["cycles"][p]["current"]
-        if c: L += [f"- {NAME[p]} 目前週期：已過 {c['elapsed']:.0f}%、已用 {c['used']:.0f}%" + (f"，照目前速度結束時約剩 {c['projected_left']:.0f}%" if c["projected_left"] is not None else "")]
+        if c:
+            pl = c["projected_left"]
+            L += [f"- {NAME[p]} 目前週期：已過 {c['elapsed']:.0f}%、已用 {c['used']:.0f}%" + (
+                "" if pl is None else "，照目前速度會在週期結束前見底" if pl <= 0 else f"，照目前速度結束時約剩 {pl:.0f}%")]
     L += ["", "### 非排程 reset", ""]
     rows = [(NAME[p], fmt_t(u["t"]), u["kind"], f"{u['used_before']:.0f}% → {u['used_after']:.0f}%", f"{u['elapsed_before']:.0f}%", fmt_t(u["due_t"]))
             for p in PROV for u in st["cycles"][p]["unscheduled"]]

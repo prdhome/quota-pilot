@@ -38,6 +38,7 @@ eq "Claude 5h ≥70% 17 次、≥90% 16 次" "17 16" "$(j claude-overrun 's["fiv
 eq "5h ≥90% 時段集中在白天（UTC 01–13 時才衝高）" "{'00-06': 7, '06-12': 8, '12-18': 1}" "$(j claude-overrun 's["five_hour"]["claude"]["90"]["slots"]')"
 eq "建議 DEFICIT↓ LEFT_MIN↑ LOW_5H↑ BLOCK_5H↑" "DEFICIT↓ LEFT_MIN↑ LOW_5H↑ BLOCK_5H↑" "$(j claude-overrun "$sugg")"
 r="$(md claude-overrun)"; has "週期結束表標見底" "| 0% | 見底 |" "$r"
+has "目前週期超速 → 提示會提前見底（不印負數）" "Claude 目前週期：已過 14%、已用 18%，照目前速度會在週期結束前見底" "$r"; hasnt "沒有負的剩量" "約剩 -" "$r"
 
 echo "門檻附近反覆切換"
 eq "單日最多切換 16 次、來回跳動 45 次、主控單日切 16 次" "16 45 16" "$(j flapping 's["switches"]["max_per_day"], s["switches"]["flaps"], s["switches"]["hub_max_per_day"]')"
