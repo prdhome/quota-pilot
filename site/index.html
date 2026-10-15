@@ -47,20 +47,38 @@ h1 span { color: var(--muted); font-weight: 500; }
 .grid > * { min-width: 0; }
 .scroll-x { overflow-x: auto; }
 h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.06em; }
-/* hero */
-.hero { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
-.mode-badge { width: 92px; height: 92px; border-radius: 22px; background: var(--accent-bg); display: grid; place-items: center; text-align: center; }
-.mode-badge b { font-size: 40px; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-.mode-badge small { display: block; font-size: 11px; color: var(--ink-2); margin-top: 2px; letter-spacing: 0.08em; }
-.route { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
-.route-desc { color: var(--ink-2); margin: 4px 0 10px; }
+/* load / data status */
+.status { margin-bottom: 14px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--critical); background: var(--surface); }
+.status b { color: var(--critical); display: block; font-size: 16px; margin-bottom: 2px; }
+.status p { margin: 0; color: var(--ink-2); font-size: 14px; }
+/* today action */
+.action { border-left: 6px solid var(--good); }
+.action[data-level="warn"] { border-left-color: var(--warning); }
+.action[data-level="crit"] { border-left-color: var(--critical); }
+.action-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.action-top h2 { margin: 0; }
+.fresh { font-size: 13px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--ring); background: var(--surface-2); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.fresh.stale { color: var(--critical); border-color: var(--critical); font-weight: 600; }
+.degrade { margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px dashed var(--critical); color: var(--critical); font-weight: 700; font-size: 14px; }
+.headline { font-size: 24px; font-weight: 700; line-height: 1.35; letter-spacing: -0.01em; margin: 0 0 6px; text-wrap: pretty; }
+.action.degraded .headline, .action.degraded .todo { opacity: 0.6; }
+.todo { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.todo li { display: flex; gap: 8px; align-items: flex-start; font-size: 15px; color: var(--ink); }
+.todo li::before { content: "▸"; color: var(--muted); flex: none; }
+.todo li[data-kind="warn"]::before { content: "▲"; color: var(--warning); }
+.todo li[data-kind="crit"]::before { content: "!"; color: var(--critical); font-weight: 700; }
+.todo li[data-kind="card"]::before { content: "◆"; color: var(--warning); }
+.todo li[data-kind="info"]::before { content: "◇"; color: var(--muted); }
+.why-fresh { font-size: 13px; color: var(--critical); margin: 0 0 10px; }
+.hero-sub { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--grid); }
+.hero-sub > div:nth-child(2) { flex: 1 1 200px; min-width: 0; }
+.mode-badge { min-width: 52px; height: 52px; padding: 0 8px; border-radius: 14px; background: var(--accent-bg); display: grid; place-items: center; text-align: center; }
+.mode-badge b { font-size: 22px; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.route { font-size: 15px; font-weight: 700; margin: 0; }
+.route-desc { color: var(--ink-2); margin: 0; font-size: 13px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink); border: 1px solid var(--ring); }
 .chip i { font-style: normal; color: var(--muted); margin-right: 4px; }
-.alert { margin-top: 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--ring); background: var(--surface-2); font-size: 14px; display: flex; gap: 8px; align-items: flex-start; }
-.alert .ico { font-weight: 700; }
-.alert.warn .ico { color: var(--warning); }
-.alert.crit .ico { color: var(--critical); }
 /* meters */
 .providers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .prov-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
@@ -86,14 +104,24 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .cell.on { background: var(--accent-bg); border-color: var(--codex); }
 .cell.on b, .cell.on span { color: var(--ink); }
 .axis-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
-/* reserves */
-.res-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--grid); font-size: 14px; }
+/* reserves timeline：每張卷／點數一條 lane，today 線貫穿 */
+.tl-axis { position: relative; height: 18px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tl-axis span { position: absolute; top: 0; white-space: nowrap; }
+.tl-axis .today { color: var(--ink); font-weight: 600; border-left: 2px solid var(--ink); padding-left: 4px; margin-left: -1px; }
+.res-row { padding: 8px 0; border-top: 1px solid var(--grid); font-size: 14px; }
 .res-row:first-of-type { border-top: 0; }
-.res-row .when { color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.res-row .left { font-weight: 600; font-variant-numeric: tabular-nums; }
+.res-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.res-row .when { color: var(--ink-2); font-variant-numeric: tabular-nums; font-size: 13px; }
+.res-row .left { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .res-row .left.soon { color: var(--critical); }
-.res-row.used { opacity: 0.45; }
-.tag { font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.lane { position: relative; height: 14px; background: var(--surface-2); border-radius: 999px; box-shadow: inset 0 0 0 1px var(--ring); }
+.lane .bar { position: absolute; top: 3px; bottom: 3px; border-radius: 999px; opacity: 0.35; }
+.lane .end { position: absolute; top: 1px; width: 12px; height: 12px; border-radius: 50%; transform: translateX(-50%); border: 2px solid var(--surface); }
+.lane .now { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); transform: translateX(-50%); border-radius: 1px; }
+.res-row.used .tag, .res-row.used .when, .res-row.used .left { color: var(--muted); }
+.res-row.used .end { background: var(--muted) !important; }
+.res-row.used .bar { display: none; }
+.tag { font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
 /* trend */
 .legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -112,10 +140,8 @@ footer { margin-top: 20px; font-size: 12px; color: var(--muted); text-align: cen
 footer a { color: inherit; }
 @media (max-width: 760px) {
   .providers, .lower { grid-template-columns: minmax(0, 1fr); }
-  .hero { grid-template-columns: 1fr; }
-  .mode-badge { width: 76px; height: 76px; border-radius: 18px; }
-  .mode-badge b { font-size: 32px; }
-  .route { font-size: 24px; }
+  .headline { font-size: 20px; }
+  .todo li { font-size: 14px; }
   .matrix { grid-template-columns: 40px repeat(4, minmax(0, 1fr)); font-size: 11px; }
   .cell { padding: 6px 2px; min-height: 46px; }
   .cell b { font-size: 12px; }
@@ -129,18 +155,23 @@ footer a { color: inherit; }
     <div class="stamp" id="stamp">載入中…</div>
   </header>
 
+  <div class="status" id="status" role="alert" hidden><b id="status-title"></b><p id="status-desc"></p></div>
+
   <div class="grid">
-    <section class="card" aria-labelledby="h-now">
-      <h2 id="h-now">現在怎麼用</h2>
-      <div class="hero">
-        <div class="mode-badge"><div><b id="mode-n">–</b><small>MODE</small></div></div>
+    <section class="card action" id="action" aria-labelledby="h-now" aria-live="polite">
+      <div class="action-top"><h2 id="h-now">今日行動</h2><span class="fresh" id="fresh">載入中…</span></div>
+      <p class="why-fresh" id="why-fresh" hidden></p>
+      <p class="degrade" id="degrade" hidden></p>
+      <p class="headline" id="headline">–</p>
+      <ul class="todo" id="todo"></ul>
+      <div class="hero-sub">
+        <div class="mode-badge" title="模式"><b id="mode-n">–</b></div>
         <div>
           <p class="route" id="route">–</p>
           <p class="route-desc" id="route-desc"></p>
-          <div class="chips" id="chips"></div>
         </div>
+        <div class="chips" id="chips"></div>
       </div>
-      <div id="alerts"></div>
     </section>
 
     <div class="grid providers" id="providers"></div>
@@ -153,7 +184,7 @@ footer a { color: inherit; }
         <details><summary>判斷依據</summary><pre class="why" id="why"></pre></details>
       </section>
       <section class="card" aria-labelledby="h-res">
-        <h2 id="h-res">重置卷與點數</h2>
+        <h2 id="h-res">重置卷與點數到期</h2>
         <div id="reserves"></div>
       </section>
     </div>
@@ -178,23 +209,104 @@ const ROUTE = {
   hold: ['非急件延後', '額度見底：只處理急件，其餘排到 reset 之後。'],
 };
 const TIER = { rich: '充裕', ok: '正常', lean: '超速', tight: '吃緊', unknown: '未知' };
-const OVERRIDE = {
-  claude5h: 'Claude 5h 快見底，暫停本體工作', codex5h: 'Codex 5h 快見底，暫停派工', both5h: '兩邊 5h 都快見底',
-  'claude5h-low': 'Claude 5h 偏低，新任務暫轉 Codex', 'codex5h-low': 'Codex 5h 偏低，新任務暫轉本體',
-  'weekend-claude': 'Claude 週額度快重置且有剩，放寬使用', 'weekend-codex': 'Codex 週額度快重置且有剩，多派工', 'weekend-both': '兩邊都快重置且有剩',
+// 今日行動卡文案查表：要調整白話建議只改這裡。函式參數 c 見 actionCtx()（c5／x5 =「約 14:30 恢復」，c7／x7 =「約 10/16 09:00 重置」）；k 見 cardInfo()。
+const ACTION = {
+  route: {
+    delegate: '大量工作派給 Codex，自己專心規劃與驗收。',
+    cost: '派工或自己做都可以：哪邊省 Claude token 就用哪邊。',
+    direct: '傾向自己做，小任務不派 Codex（保留 Codex 額度）。',
+    'no-codex': '先不要派 Codex（它的週額度吃緊）：划算的自己做，太大的等 reset。',
+    'small-only': '兩邊都不寬裕：只做小任務，大任務等週額度 reset。',
+    hold: '額度見底：只處理急件，其餘延後到 reset 之後。',
+  },
+  hub: { opus: '主控用 Opus', sonnet: '主控改用 Sonnet（Claude 週額度吃緊，省 Opus 額度）' },
+  override: {
+    claude5h: c => ['crit', `Claude 5h 額度快用完（${c.c5}）：這段時間先別用 Claude 開新工作。`],
+    codex5h: c => ['crit', `Codex 5h 額度快用完（${c.x5}）：這段時間先別派工給 Codex。`],
+    both5h: c => ['crit', `兩邊 5h 都快用完（Claude ${c.c5}；Codex ${c.x5}）。`],
+    'claude5h-low': c => ['warn', `Claude 5h 偏低（${c.c5}）：新任務暫時轉給 Codex。`],
+    'codex5h-low': c => ['warn', `Codex 5h 偏低（${c.x5}）：新任務暫時自己做。`],
+    'weekend-claude': c => ['info', `Claude 週額度${c.c7}、還有剩：放寬用 Opus 自己做，別浪費。`],
+    'weekend-codex': c => ['info', `Codex 週額度${c.x7}、還有剩：多派工把它用掉。`],
+    'weekend-both': () => ['info', '兩邊週額度都快重置而且有剩：放手用。'],
+  },
+  card: {
+    use: k => `建議現在使用 ${k.name} 重置卷（週額度快用完）：最近一張 ${k.date} 到期、剩 ${k.left}。用完記得跑 quota-reserve.sh use ${k.p}。`,
+    expiring: k => `建議使用 ${k.name} 重置卷（${k.date} 到期、剩 ${k.left}，不用就浪費）。用完記得跑 quota-reserve.sh use ${k.p}。`,
+    soon: k => `提醒：${k.name} 重置卷 ${k.date} 到期（剩 ${k.left}），還不急著用；週額度用過半時可以考慮先用掉。`,
+  },
+  soonDays: 3,                 // 卷剩幾天內給溫和提醒
+  staleMin: 90,                // 超過幾分鐘標為過期
+  degradeHours: 6,             // 超過幾小時把行動卡降級
+  stale: m => `已 ${m} 沒更新：Mac 可能關機、睡眠或推送失敗，以下是最後一次的狀態。`,
+  degrade: '數據過期，建議僅供參考',
+  error: {
+    fetch: ['讀不到資料', '取不到 data/snapshot.json（網路斷線、檔案不存在或 GitHub Pages 尚未更新）。稍後重新整理。'],
+    format: ['資料格式不對', 'snapshot.json 的內容不是預期的格式（可能是推送中斷或 snapshot.sh 改版）。'],
+    render: ['畫面錯誤', '資料已讀到，但網頁程式出錯（詳情見瀏覽器 console）。這是儀表板的 bug，不是額度資料的問題。'],
+  },
 };
 const MATRIX = [[1, 'delegate', 2, 'cost', 3, 'direct', 4, 'no-codex'], [5, 'delegate', 6, 'cost', 7, 'cost', 8, 'small-only'], [9, 'delegate', 10, 'delegate', 11, 'hold', 12, 'hold']];
 const $ = id => document.getElementById(id);
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) k === 'class' ? e.className = v : k === 'style' ? e.style.cssText = v : e.setAttribute(k, v); e.append(...kids.filter(k => k != null)); return e; };
 const fmtLeft = sec => { if (sec == null) return '?'; if (sec <= 0) return '已到'; const m = Math.round(sec / 60), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60); return d ? `${d}天${h}時` : h ? `${h}時${m % 60}分` : `${m}分`; };
 const nowS = () => Date.now() / 1000;
+const NAME = { claude: 'Claude', codex: 'Codex' };
+const md = t => { const d = new Date(t * 1000); return `${d.getMonth() + 1}/${d.getDate()}`; };
+const hm = t => { const d = new Date(t * 1000); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+const fmtDays = sec => sec < 86400 ? `${Math.max(1, Math.round(sec / 3600))} 小時` : `${Math.floor(sec / 86400)} 天`;
+const fmtAge = sec => { const m = Math.max(0, Math.round(sec / 60)); return m < 60 ? `${m} 分鐘` : m < 1440 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${Math.floor(m / 1440)} 天 ${Math.floor(m % 1440 / 60)} 小時`; };
 let snap = null, hist = [];
+
+// 5h／週 reset 的白話時間：今天內「約 14:30 恢復」，否則帶日期；已過 reset（數據較舊）→「應已恢復」
+function whenBack(r, verb = '恢復') {
+  if (!r) return '恢復時間不明';
+  const now = nowS();
+  if (r <= now) return `應已${verb}`;
+  return `約 ${new Date(r * 1000).toDateString() === new Date().toDateString() ? '' : md(r) + ' '}${hm(r)} ${verb}`;
+}
+const actionCtx = () => ({
+  c5: whenBack(snap.claude?.five?.resets_at), x5: whenBack(snap.codex?.five?.resets_at),
+  c7: whenBack(snap.claude?.week?.resets_at, '重置'), x7: whenBack(snap.codex?.week?.resets_at, '重置'),
+});
+const liveCards = () => (snap.cards || []).filter(c => !c.used_at && Date.parse(c.expires) / 1000 > nowS()).sort((a, b) => a.expires.localeCompare(b.expires));
+function cardInfo(c) {
+  const t = Date.parse(c.expires) / 1000;
+  return { p: c.provider, name: NAME[c.provider] || c.provider, date: md(t), left: fmtDays(t - nowS()), t };
+}
+
+function renderAction(m, age) {
+  const stale = age > ACTION.staleMin * 60, degraded = age > ACTION.degradeHours * 3600;
+  $('fresh').textContent = `${fmtAge(age)}前更新` + (stale ? ' · 過期' : '');
+  $('fresh').className = 'fresh' + (stale ? ' stale' : '');
+  $('why-fresh').hidden = !stale; $('why-fresh').textContent = stale ? ACTION.stale(fmtAge(age)) : '';
+  $('degrade').hidden = !degraded; $('degrade').textContent = degraded ? ACTION.degrade : '';
+  $('headline').textContent = ACTION.route[m.route] || `route=${m.route}`;
+  const todo = [], ctx = actionCtx();
+  if (m.override && m.override !== '-') todo.push(ACTION.override[m.override] ? ACTION.override[m.override](ctx) : ['warn', `暫時覆寫：${m.override}`]);
+  const signals = m.card && m.card !== '-' ? m.card.split(',').map(s => s.split(':')) : [];
+  const live = liveCards();
+  for (const [p, why] of signals) {
+    const c = live.find(k => k.provider === p);
+    if (c && ACTION.card[why]) todo.push(['card', ACTION.card[why](cardInfo(c))]);
+  }
+  if (!signals.length) {
+    const soon = live.find(c => Date.parse(c.expires) / 1000 - nowS() <= ACTION.soonDays * 86400);
+    if (soon) todo.push(['info', ACTION.card.soon(cardInfo(soon))]);
+  }
+  todo.push(['', ACTION.hub[m.hub] + (m.subagent ? `，subagent 用 ${m.subagent === 'opus' ? 'Opus' : 'Sonnet'}。` : '。')]);
+  $('todo').replaceChildren(...todo.slice(0, 3).map(([k, t]) => el('li', { 'data-kind': k || 'note' }, t)));
+  const level = degraded ? 'crit' : todo.some(([k]) => k === 'crit') || m.route === 'hold' ? 'crit' : stale || todo.some(([k]) => k === 'warn' || k === 'card') ? 'warn' : 'ok';
+  $('action').dataset.level = level;
+  $('action').classList.toggle('degraded', degraded);
+}
 
 function render() {
   if (!snap) return;
   const m = snap.mode, age = nowS() - snap.generated_at;
-  $('stamp').textContent = `更新於 ${new Date(snap.generated_at * 1000).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}（${fmtLeft(age)}前）`;
-  $('stamp').className = 'stamp' + (age > 5400 ? ' stale' : '');
+  $('stamp').textContent = `更新於 ${new Date(snap.generated_at * 1000).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+  $('stamp').className = 'stamp' + (age > ACTION.staleMin * 60 ? ' stale' : '');
+  renderAction(m, age);
   const [label, desc] = ROUTE[m.route] || [m.route, ''];
   $('mode-n').textContent = 'M' + m.mode;
   $('route').textContent = label;
@@ -204,14 +316,6 @@ function render() {
     el('span', { class: 'chip' }, el('i', {}, 'subagent'), m.subagent === 'opus' ? 'Opus' : 'Sonnet'),
     el('span', { class: 'chip' }, el('i', {}, 'Claude'), TIER[m.claude] || m.claude),
     el('span', { class: 'chip' }, el('i', {}, 'Codex'), TIER[m.codex] || m.codex));
-  const alerts = [];
-  if (age > 5400) alerts.push(['crit', '!', `資料已 ${fmtLeft(age)} 未更新（Mac 可能關機或推送失敗），以下為最後狀態。`]);
-  if (m.override && m.override !== '-') alerts.push([m.route === 'hold' ? 'crit' : 'warn', '▲', '暫時覆寫：' + (OVERRIDE[m.override] || m.override)]);
-  for (const c of (m.card && m.card !== '-' ? m.card.split(',') : [])) {
-    const [p, why] = c.split(':');
-    alerts.push(['warn', '◆', `建議使用 ${p === 'claude' ? 'Claude' : 'Codex'} 重置卷（${why === 'use' ? '週額度快用完' : '卷快到期'}）——用完記得跑 quota-reserve.sh use ${p}`]);
-  }
-  $('alerts').replaceChildren(...alerts.map(([k, ico, t]) => el('div', { class: 'alert ' + k, role: 'status' }, el('span', { class: 'ico', 'aria-hidden': 'true' }, ico), el('span', {}, t))));
 
   const prov = (key, name, color) => {
     const d = snap[key];
@@ -246,23 +350,35 @@ function render() {
   $('matrix').replaceChildren(...mx);
   $('why').textContent = (snap.explain || []).join('\n');
 
-  const rs = [];
-  for (const c of [...(snap.cards || [])].sort((a, b) => a.expires.localeCompare(b.expires))) {
-    const left = Date.parse(c.expires) / 1000 - nowS();
-    const dead = c.used_at || left <= 0;
-    rs.push(el('div', { class: 'res-row' + (dead ? ' used' : '') },
-      el('span', { class: 'tag' }, el('span', { class: 'dot', style: `background:var(--${c.provider === 'claude' ? 'claude' : 'codex'})` }), c.provider === 'claude' ? 'Claude' : 'Codex'),
-      el('span', { class: 'when' }, '完整重置卷 · ' + new Date(c.expires).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' }) + ' 到期'),
-      el('span', { class: 'left' + (!dead && left < 172800 ? ' soon' : '') }, c.used_at ? '已用' : left <= 0 ? '過期' : '剩 ' + fmtLeft(left))));
-  }
-  for (const c of snap.credits || []) {
-    const left = Date.parse(c.expires) / 1000 - nowS();
-    rs.push(el('div', { class: 'res-row' }, el('span', { class: 'tag' }, el('span', { class: 'dot', style: 'background:var(--claude)' }), '雲端'),
-      el('span', { class: 'when' }, `點數 US$${c.usd_left} / ${c.usd_total} · ${new Date(c.expires).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })} 到期`),
-      el('span', { class: 'left' }, '剩 ' + fmtLeft(left))));
-  }
-  $('reserves').replaceChildren(...(rs.length ? rs : [el('p', { class: 'empty' }, '沒有登錄的重置卷')]));
+  renderReserves();
   drawTrend();
+}
+
+// 重置卷與點數時間軸：每項一條 lane，共用同一個時間範圍；今天一條直線，未到期的畫「今天 → 到期」區段，已用／過期灰掉
+function renderReserves() {
+  const now = nowS();
+  const items = [
+    ...(snap.cards || []).map(c => ({ kind: 'card', p: c.provider, t: Date.parse(c.expires) / 1000, used: !!c.used_at, label: `${NAME[c.provider] || c.provider} 重置卷` })),
+    ...(snap.credits || []).map(c => ({ kind: 'credit', p: c.provider, t: Date.parse(c.expires) / 1000, used: false, label: `雲端點數 US$${c.usd_left} / ${c.usd_total}` })),
+  ].filter(i => Number.isFinite(i.t)).sort((a, b) => a.t - b.t);
+  if (!items.length) return $('reserves').replaceChildren(el('p', { class: 'empty' }, '沒有登錄的重置卷或點數'));
+  const t0 = Math.min(now - 86400, ...items.map(i => i.t)), t1 = Math.max(now + 7 * 86400, ...items.map(i => i.t)) + 86400;
+  const pct = t => (100 * (t - t0) / (t1 - t0)).toFixed(2) + '%';
+  const axis = el('div', { class: 'tl-axis', 'aria-hidden': 'true' },
+    el('span', { class: 'today', style: `left:${pct(now)}` }, `今天 ${md(now)}`), el('span', { style: 'right:0' }, md(t1)));
+  const rows = items.map(i => {
+    const left = i.t - now, dead = i.used || left <= 0, color = `var(--${i.p === 'codex' ? 'codex' : 'claude'})`;
+    const lane = el('div', { class: 'lane', role: 'img', 'aria-label': `${i.label}，${md(i.t)} 到期` });
+    if (!dead) lane.append(el('div', { class: 'bar', style: `left:${pct(now)};width:calc(${pct(i.t)} - ${pct(now)});background:${color}` }));
+    lane.append(el('div', { class: 'now', style: `left:${pct(now)}` }), el('div', { class: 'end', style: `left:${pct(i.t)};background:${color}` }));
+    return el('div', { class: 'res-row' + (dead ? ' used' : ''), 'data-kind': i.kind },
+      el('div', { class: 'res-head' },
+        el('span', { class: 'tag' }, el('span', { class: 'dot', style: `background:${dead ? 'var(--muted)' : color}` }), i.label),
+        el('span', {}, el('span', { class: 'when' }, md(i.t) + ' 到期 · '),
+          el('span', { class: 'left' + (!dead && left < ACTION.soonDays * 86400 ? ' soon' : '') }, i.used ? '已用' : left <= 0 ? '過期' : '剩 ' + fmtDays(left)))),
+      lane);
+  });
+  $('reserves').replaceChildren(axis, ...rows);
 }
 
 function drawTrend() {
@@ -324,20 +440,50 @@ function drawTrend() {
   $('table').replaceChildren(tb);
 }
 
+// 三種失敗分開顯示：fetch（取不到檔案）、format（資料格式不對）、render（畫面程式錯誤，另 console.error）。<body data-state> 給測試用。
+function setState(state, detail) {
+  document.body.dataset.state = state;
+  const box = $('status');
+  if (state === 'ok') { box.hidden = true; return; }
+  const [title, desc] = ACTION.error[state];
+  $('status-title').textContent = title;
+  $('status-desc').textContent = desc + (detail ? `（${detail}）` : '');
+  box.hidden = false;
+  if (!snap) { $('stamp').textContent = title; $('stamp').className = 'stamp stale'; $('fresh').textContent = title; $('fresh').className = 'fresh stale'; $('headline').textContent = '–'; }
+}
+function validate(s) {
+  const bad = why => { throw Object.assign(new Error(why), { kind: 'format' }); };
+  if (!s || typeof s !== 'object') bad('不是 JSON 物件');
+  if (!Number.isFinite(s.generated_at)) bad('缺 generated_at');
+  if (!s.mode || typeof s.mode !== 'object') bad('缺 mode');
+  for (const k of ['mode', 'route', 'hub', 'claude', 'codex']) if (typeof s.mode[k] !== 'string') bad(`mode.${k} 不是字串`);
+  for (const p of ['claude', 'codex']) if (s[p] != null && (typeof s[p] !== 'object' || !s[p].five || !s[p].week)) bad(`${p} 缺 five/week`);
+  for (const k of ['cards', 'credits']) if (s[k] != null && !Array.isArray(s[k])) bad(`${k} 不是陣列`);
+  return s;
+}
+function safeRender(fn = render) {
+  try { fn(); if (document.body.dataset.state === 'render') setState('ok'); }
+  catch (e) { console.error('quota-pilot render error:', e); setState('render', e.message); }
+}
 async function load() {
+  let a, b, next;
   try {
-    const [a, b] = await Promise.all([fetch('data/snapshot.json', { cache: 'no-store' }), fetch('data/history.jsonl', { cache: 'no-store' })]);
-    snap = await a.json();
-    hist = b.ok ? (await b.text()).split('\n').filter(Boolean).map(l => JSON.parse(l)) : [];
-    render();
-  } catch (e) {
-    $('stamp').textContent = '讀不到資料：' + e.message; $('stamp').className = 'stamp stale';
-  }
+    [a, b] = await Promise.all([fetch('data/snapshot.json', { cache: 'no-store' }), fetch('data/history.jsonl', { cache: 'no-store' }).catch(() => null)]);
+    if (!a.ok) throw new Error(`HTTP ${a.status}`);
+  } catch (e) { return setState('fetch', e.message); }
+  try {
+    next = validate(JSON.parse(await a.text()));
+  } catch (e) { return setState('format', e.message); }
+  snap = next;
+  hist = [];
+  if (b && b.ok) for (const l of (await b.text()).split('\n')) { if (!l.trim()) continue; try { hist.push(JSON.parse(l)); } catch { console.warn('history.jsonl 略過格式錯誤的一行'); } }
+  setState('ok');
+  safeRender();
 }
 load();
-setInterval(render, 30000);
+setInterval(() => safeRender(), 30000);
 setInterval(load, 5 * 60000);
-addEventListener('resize', () => drawTrend());
+addEventListener('resize', () => safeRender(drawTrend));
 </script>
 </body>
 </html>

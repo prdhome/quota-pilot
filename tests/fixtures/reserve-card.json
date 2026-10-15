@@ -9,5 +9,6 @@
   ],
   "credits": [{"provider": "claude", "usd_left": 12.5, "usd_total": 50, "expires_in": 2592000, "note": "fixture"}]
  },
- "expect": {"mode": {"mode": "6", "hub": "opus", "route": "cost", "subagent": "opus", "claude": "ok", "codex": "ok", "override": "-", "card": "claude:use"}}
+ "expect": {"mode": {"mode": "6", "hub": "opus", "route": "cost", "subagent": "opus", "claude": "ok", "codex": "ok", "override": "-", "card": "claude:use"},
+            "action": ["Claude 重置卷", "quota-reserve.sh use claude"]}
 }

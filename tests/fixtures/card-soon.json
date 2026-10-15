@@ -1,0 +1,8 @@
+{
+ "description": "Codex 有 1 張卷 2.5 天後到期，但週額度還夠、還沒輪到該用 → 行動卡溫和提醒（card 欄為 -）",
+ "claude": {"five_used": 10, "five_reset_in": 3600, "week_used": 43, "week_reset_in": 127008, "updated_ago": 0},
+ "codex": {"five_used": 10, "week_used": 70, "five_reset_in": 3600, "week_reset_in": 127008},
+ "reserves": {"cards": [{"provider": "codex", "expires_in": 216000, "used_at": null}], "credits": []},
+ "expect": {"mode": {"mode": "2", "hub": "opus", "route": "cost", "subagent": "opus", "claude": "rich", "codex": "ok", "override": "-", "card": "-"},
+            "action": ["Codex 重置卷", "還不急著用"]}
+}
