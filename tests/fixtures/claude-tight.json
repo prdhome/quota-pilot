@@ -1,0 +1,7 @@
+{
+ "description": "Claude 7d 吃緊（週剩 5%）、Codex 充裕 → M9 派工，主控降 Sonnet",
+ "claude": {"five_used": 10, "five_reset_in": 3600, "week_used": 95, "week_reset_in": 127008, "updated_ago": 0},
+ "codex": {"five_used": 10, "week_used": 43, "five_reset_in": 3600, "week_reset_in": 127008},
+ "reserves": {"cards": [], "credits": []},
+ "expect": {"mode": {"mode": "9", "hub": "sonnet", "route": "delegate", "subagent": "sonnet", "claude": "tight", "codex": "rich", "override": "-", "card": "-"}}
+}

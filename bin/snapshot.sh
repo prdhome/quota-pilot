@@ -2,10 +2,11 @@
 # snapshot.sh — 把當下額度狀態輸出成儀表板用的 JSON（stdout）。不耗 LLM token。
 # 只含：各視窗用量 %／reset 時間、週盈餘、quota-mode 判定與依據、重置卷到期日、點數餘額。不含路徑、帳號、對話內容。
 # 來源：~/.claude/state/rate_limits.json（Claude status line 落地）、codex-quota.sh --cached、quota-reserves.json。
+# 測試用：`QP_CODEX_TSV="<5h> <7d> <5h_reset> <7d_reset>"` 直接注入 Codex 讀數、不呼叫 codex-quota.sh（設成 `-` = 讀不到）；未設時行為不變。
 d="$(cd "$(dirname "$0")" && pwd)"
 STATE="${QP_STATE:-$HOME/.claude/state/rate_limits.json}"
 RES="${QUOTA_RESERVES:-$HOME/.claude/state/quota-reserves.json}"
-tsv="$("$d/codex-quota.sh" --cached 2>/dev/null)"
+tsv="${QP_CODEX_TSV:-$("$d/codex-quota.sh" --cached 2>/dev/null)}"
 mode="$("$d/quota-mode.sh" --state "$STATE" --reserves "$RES" ${tsv:+--codex-tsv "$tsv"} --explain 2>"${TMPDIR:-/tmp}/qp-explain.$$")"
 explain="$(cat "${TMPDIR:-/tmp}/qp-explain.$$")"; rm -f "${TMPDIR:-/tmp}/qp-explain.$$"
 python3 -I - "$STATE" "$RES" "$tsv" "$mode" "$explain" <<'PY'
