@@ -112,6 +112,6 @@ unset RESV
 # --- 門檻同步：網頁 ACTION.cardUseLeft ＝ quota-mode.sh CARD_USE_LEFT 預設值 ---
 want=$(sed -nE 's/^CARD_USE_LEFT="\$\{CARD_USE_LEFT:-([0-9.]+)\}"$/\1/p' "$ROOT/bin/quota-mode.sh")
 got=$(sed -nE 's/^ *cardUseLeft: *([0-9.]+),.*/\1/p' "$ROOT/site/index.html")
-eq "門檻同步：site ACTION.cardUseLeft ＝ quota-mode.sh CARD_USE_LEFT（$want）" "${want:-缺}" "${got:-缺}"
+eq "門檻同步：site ACTION.cardUseLeft ＝ quota-mode.sh CARD_USE_LEFT（${want}）" "${want:-缺}" "${got:-缺}"
 
 echo "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

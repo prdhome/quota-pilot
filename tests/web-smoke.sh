@@ -8,7 +8,7 @@ trap '[ -n "$srv" ] && kill "$srv" 2>/dev/null; rm -rf "$T"' EXIT
 names=()
 for f in "$ROOT"/tests/fixtures/*.json; do
   n="$(basename "$f" .json)"; names+=("$n")
-  python3 -I "$ROOT/tests/lib/fixture.py" site "$n" "$T/www/$n" || { echo "❌ $n：產生假網站失敗"; exit 1; }
+  python3 -I "$ROOT/tests/lib/fixture.py" site "$n" "$T/www/$n" || { echo "❌ ${n}：產生假網站失敗"; exit 1; }
   rm -rf "$T/www/$n/state" "$T/www/$n/home"   # 只留網站會讀的 index.html 與 data/
 done
 port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"

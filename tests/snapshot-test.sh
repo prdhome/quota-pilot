@@ -17,8 +17,8 @@ check() {  # check <名稱> <snapshot.json> [情境檔]：結構＋情境 expect
 
 for f in "$ROOT"/tests/fixtures/*.json; do
   n="$(basename "$f" .json)"; d="$T/$n"
-  python3 -I "$ROOT/tests/lib/fixture.py" state "$n" "$d" || { ng "$n：產生假資料" ""; continue; }
-  if snap "$d" > "$d/snapshot.json" 2>"$d/err"; then check "$n" "$d/snapshot.json" "$f"; else ng "$n：snapshot.sh 失敗" "$(cat "$d/err")"; fi
+  python3 -I "$ROOT/tests/lib/fixture.py" state "$n" "$d" || { ng "${n}：產生假資料" ""; continue; }
+  if snap "$d" > "$d/snapshot.json" 2>"$d/err"; then check "$n" "$d/snapshot.json" "$f"; else ng "${n}：snapshot.sh 失敗" "$(cat "$d/err")"; fi
 done
 
 # Codex 讀不到（QP_CODEX_TSV=-）→ codex=null、矩陣當 ok
