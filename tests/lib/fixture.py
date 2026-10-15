@@ -55,24 +55,49 @@ def snapshot_env(out, tsv):
                 QUOTA_RESERVES=os.path.join(st, "quota-reserves.json"), QP_CODEX_TSV=tsv)
 
 
+M = {("rich", "rich"): (1, "delegate"), ("rich", "ok"): (2, "cost"), ("rich", "lean"): (3, "direct"), ("rich", "tight"): (4, "no-codex"),
+     ("ok", "rich"): (5, "delegate"), ("ok", "ok"): (6, "cost"), ("ok", "lean"): (7, "cost"), ("ok", "tight"): (8, "small-only"),
+     ("tight", "rich"): (9, "delegate"), ("tight", "ok"): (10, "delegate"), ("tight", "lean"): (11, "hold"), ("tight", "tight"): (12, "hold")}
+WEEK = 7 * 86400
+
+
 def history(snap):
-    """合成 7 天、每 30 分鐘一筆的歷史，最後一筆接到 snapshot 的數值。"""
+    """合成 7 天、每 30 分鐘一筆的歷史（格式同 bin/publish.sh），最後一筆接到 snapshot 的數值。
+    週用量照週期累積：目前週期從 resets_at − 7 天開始、白天用得多（單調遞增）；更早的列屬上一個週期。
+    模式／route 用簡化版矩陣規則從合成的盈餘推回；最後 3 小時改用 snapshot 當下的判定（含 override、card）。"""
     end, n, rows = snap["generated_at"], 7 * 48, []
-    def g(*path):
-        o = snap
-        for k in path:
-            o = (o or {}).get(k)
-        return o
-    cs, xs = g("claude", "surplus"), g("codex", "surplus")
+    m = snap["mode"]
+    act = lambda t: 1 + 0.8 * math.sin(2 * math.pi * ((t / 3600) % 24 - 6) / 24)   # 一天中的用量節奏（> 0）
+    def cum(a, b):                                                                   # ∫ act，從 a 到 b（30 分鐘步長）
+        return sum(act(t) for t in range(int(a), int(b), 1800)) * 1800 if b > a else 0.0
+    def week(p, prev_total):
+        w = (snap.get(p) or {}).get("week") or {}
+        if w.get("resets_at") is None: return None
+        R, U = w["resets_at"], w["used"]
+        while R - WEEK > end: R -= WEEK
+        S = R - WEEK
+        def at(t):
+            if t >= S: return (U * cum(S, t) / cum(S, end) if cum(S, end) else 0.0), 100 * (t - S) / WEEK, R
+            return prev_total * cum(S - WEEK, t) / cum(S - WEEK, S), 100 * (t - S + WEEK) / WEEK, S
+        return at
+    cw, xw = week("claude", 72), week("codex", 64)
     for i in range(n + 1):
-        f = i / n
-        wave = lambda ph: 8 * math.sin(2 * math.pi * (f * 7 + ph)) * (1 - f)
-        rows.append({"t": round(end - (n - i) * 1800), "mode": int(snap["mode"].get("mode", 0)), "route": snap["mode"].get("route"),
-                     "hub": snap["mode"].get("hub"),
-                     "c5": None if cs is None else round(50 + 40 * math.sin(i / 5), 1), "c7": None if cs is None else round(f * g("claude", "week", "used"), 1),
-                     "cs": None if cs is None else round(cs * f + wave(0), 1),
-                     "x5": None if xs is None else round(50 + 40 * math.cos(i / 6), 1), "x7": None if xs is None else round(f * g("codex", "week", "used"), 1),
-                     "xs": None if xs is None else round(xs * f + wave(0.3), 1)})
+        t = round(end - (n - i) * 1800)
+        r = {"t": t}
+        for p, fn, k in (("claude", cw, "c"), ("codex", xw, "x")):
+            if fn is None:
+                r.update({k + "5": None, k + "7": None, k + "s": None, k + "r": None}); continue
+            used, e, reset = fn(t)
+            r.update({k + "5": round(50 + 40 * math.sin(i / (5 if k == "c" else 6)), 1), k + "7": round(used, 1), k + "s": round(e - used, 1), k + "r": round(reset)})
+        ct = "ok" if r["cs"] is None else "rich" if r["cs"] >= 15 * min(1, (r["cs"] + r["c7"]) / 50) else "tight" if r["cs"] <= -15 or r["c7"] > 85 else "ok"
+        xt = "lean" if r["xs"] is None else "tight" if r["x7"] > 85 or r["xs"] <= -25 else "rich" if r["xs"] >= 15 else "lean" if r["xs"] < 0 else "ok"
+        mode, route = M[(ct, xt)]
+        ov = "claude5h-low" if (r["c5"] or 0) >= 85 and route in ("cost", "direct") else "-"
+        if end - t < 3 * 3600:
+            mode, route, ct, xt, ov = int(m.get("mode", 0)), m.get("route"), m.get("claude"), m.get("codex"), m.get("override", "-")
+        r.update({"mode": mode, "route": route, "hub": m.get("hub") if end - t < 3 * 3600 else ("sonnet" if ct == "tight" else "opus"),
+                  "override": ov, "card": m.get("card", "-") if end - t < 3 * 3600 else "-", "ct": ct, "xt": xt})
+        rows.append(r)
     return rows
 
 

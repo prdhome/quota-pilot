@@ -15,6 +15,7 @@
   --claude: #eb6834; --codex: #2a78d6;
   --good: #0ca30c; --good-text: #006300; --warning: #fab219; --critical: #d03b3b;
   --accent-bg: #eaf2fc;
+  --r-cost: #1baf7a; --r-hold: #6b6a65;   /* 收斂組是中性灰＋斜線紋理（紋理才是識別），其餘三色過 validate_palette all-pairs */
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -24,6 +25,7 @@
     --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
     --claude: #d95926; --codex: #3987e5; --good-text: #0ca30c;
     --accent-bg: #16263b;
+    --r-cost: #199e70; --r-hold: #6b6a65;
   }
 }
 :root[data-theme="dark"] {
@@ -33,6 +35,7 @@
   --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
   --claude: #d95926; --codex: #3987e5; --good-text: #0ca30c;
   --accent-bg: #16263b;
+  --r-cost: #199e70; --r-hold: #6b6a65;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", sans-serif; -webkit-font-smoothing: antialiased; }
@@ -104,6 +107,34 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .cell.on { background: var(--accent-bg); border-color: var(--codex); }
 .cell.on b, .cell.on span { color: var(--ink); }
 .axis-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+/* today budget */
+.budget { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; }
+.budget-tile { background: var(--surface-2); border: 1px solid var(--ring); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.budget-tile .bt-name { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.budget-tile .bt-num { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; margin: 2px 0 0; }
+.budget-tile .bt-num small { font-size: 13px; font-weight: 500; color: var(--ink-2); margin-left: 2px; }
+.budget-tile .bt-sub { font-size: 12px; color: var(--ink-2); margin: 2px 0 0; }
+/* weekly burn-up (per provider) */
+.burn { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--grid); }
+.burn-cap { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+.burn-cap i { display: inline-block; width: 16px; height: 0; border-top: 2px dashed var(--muted); vertical-align: middle; margin-right: 4px; }
+.burn-cap i.proj { border-top-style: dotted; border-top-width: 3px; }
+.burn-box { position: relative; }
+.burn-box svg { display: block; width: 100%; height: 150px; overflow: visible; }
+.burn-note { font-size: 13px; margin: 4px 0 0; }
+.burn-note b { font-variant-numeric: tabular-nums; }
+/* matrix heat + 24h path */
+.matrix { position: relative; }
+.cell small { display: block; font-size: 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-top: 1px; }
+.matrix svg.path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+/* reasons */
+.reasons { margin: 12px 0 0; padding: 0; list-style: none; counter-reset: why; display: grid; gap: 6px; font-size: 13px; }
+.reasons li { display: grid; grid-template-columns: 20px 1fr; gap: 6px; align-items: start; }
+.reasons li::before { counter-increment: why; content: counter(why); width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--ring); font-size: 11px; display: grid; place-items: center; color: var(--ink-2); }
+.reasons b { font-weight: 600; }
+/* route strip legend */
+.legend .sw { width: 12px; height: 10px; border-radius: 2px; display: inline-block; }
+.legend.routes { margin: 4px 0 0; flex-wrap: wrap; gap: 6px 14px; }
 /* reserves timeline：每張卷／點數一條 lane，today 線貫穿 */
 .tl-axis { position: relative; height: 18px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .tl-axis span { position: absolute; top: 0; white-space: nowrap; }
@@ -127,7 +158,7 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
 .chart { position: relative; }
-.chart svg { display: block; width: 100%; height: 240px; overflow: visible; }
+.chart svg { display: block; width: 100%; height: 262px; overflow: visible; }
 .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 6px 9px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); white-space: nowrap; display: none; }
 .tip b { font-variant-numeric: tabular-nums; }
 details { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
@@ -145,6 +176,7 @@ footer a { color: inherit; }
   .matrix { grid-template-columns: 40px repeat(4, minmax(0, 1fr)); font-size: 11px; }
   .cell { padding: 6px 2px; min-height: 46px; }
   .cell b { font-size: 12px; }
+  .budget-tile .bt-num { font-size: 19px; }
 }
 </style>
 </head>
@@ -164,6 +196,7 @@ footer a { color: inherit; }
       <p class="degrade" id="degrade" hidden></p>
       <p class="headline" id="headline">–</p>
       <ul class="todo" id="todo"></ul>
+      <div class="budget" id="budget" aria-label="今日可用預算"></div>
       <div class="hero-sub">
         <div class="mode-badge" title="模式"><b id="mode-n">–</b></div>
         <div>
@@ -180,8 +213,10 @@ footer a { color: inherit; }
       <section class="card" aria-labelledby="h-matrix">
         <h2 id="h-matrix">7d 模式矩陣</h2>
         <div class="matrix" id="matrix"></div>
-        <p class="axis-note">列：Claude 7d 等級；欄：Codex 7d 等級（已含重置卷）。5h 只做暫時覆寫。</p>
-        <details><summary>判斷依據</summary><pre class="why" id="why"></pre></details>
+        <p class="axis-note" id="matrix-note">列：Claude 7d 等級；欄：Codex 7d 等級（已含重置卷）。5h 只做暫時覆寫。</p>
+        <h2 style="margin:16px 0 0">為什麼是這個模式</h2>
+        <ol class="reasons" id="reasons"></ol>
+        <details><summary>原始判斷紀錄</summary><pre class="why" id="why"></pre></details>
       </section>
       <section class="card" aria-labelledby="h-res">
         <h2 id="h-res">重置卷與點數到期</h2>
@@ -190,9 +225,10 @@ footer a { color: inherit; }
     </div>
 
     <section class="card" aria-labelledby="h-trend">
-      <h2 id="h-trend">7 天週盈餘趨勢（週期已過% − 週已用%）</h2>
-      <div class="legend"><span><i style="background:var(--claude)"></i>Claude</span><span><i style="background:var(--codex)"></i>Codex</span></div>
+      <h2 id="h-trend">7 天趨勢：週盈餘與建議的使用途徑</h2>
+      <div class="legend"><span><i style="background:var(--claude)"></i>Claude 週盈餘</span><span><i style="background:var(--codex)"></i>Codex 週盈餘</span></div>
       <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+      <div class="legend routes" id="route-legend"></div>
       <details><summary>表格檢視</summary><div id="table" class="scroll-x"></div></details>
     </section>
   </div>
@@ -242,6 +278,20 @@ const ACTION = {
   degradeHours: 6,             // 超過幾小時把行動卡降級
   stale: m => `已 ${m} 沒更新：Mac 可能關機、睡眠或推送失敗，以下是最後一次的狀態。`,
   degrade: '數據過期，建議僅供參考',
+  // 今日可用預算：週剩 ÷ 剩餘天數；「比平均寬／緊」對照平均每天 100/7 ≈ 14%
+  budget: {
+    perDay: (v, left, days, loose) => ({ num: `≈ ${v}`, unit: '% / 天', sub: `週剩 ${left}% ÷ ${days} · ${loose ? '比平均寬' : '比平均緊'}` }),
+    lastDay: (left, when) => ({ num: `${left}`, unit: '% 今天用完', sub: `${when}，剩下的不用就作廢` }),
+    none: { num: '–', unit: '', sub: '讀不到週額度' },
+  },
+  // 7 天趨勢底下的 route 時間帶：6 種 route 併成 4 組（顏色＝誰做事：派工＝Codex 藍、自己做＝Claude 橘）
+  routeGroup: { delegate: 'delegate', cost: 'cost', direct: 'self', 'no-codex': 'self', 'small-only': 'hold', hold: 'hold' },
+  groups: {
+    delegate: ['派工（Codex 做）', 'var(--codex)'], cost: ['照成本', 'var(--r-cost)'],
+    self: ['自己做（Claude 做）', 'var(--claude)'], hold: ['收斂（小任務／延後）', 'url(#hatch)'],
+  },
+  // Codex 等級門檻（顯示用，須與 bin/quota-mode.sh 的 LEFT_TIGHT／CODEX_DEFICIT／CODEX_RICH 預設值一致；tests/policy-test.sh 檢查）
+  thr: { leftTight: 15, codexDeficit: 25, codexRich: 15 },
   error: {
     fetch: ['讀不到資料', '取不到 data/snapshot.json（網路斷線、檔案不存在或 GitHub Pages 尚未更新）。稍後重新整理。'],
     format: ['資料格式不對', 'snapshot.json 的內容不是預期的格式（可能是推送中斷或 snapshot.sh 改版）。'],
@@ -309,6 +359,7 @@ function render() {
   $('stamp').textContent = `更新於 ${new Date(snap.generated_at * 1000).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
   $('stamp').className = 'stamp' + (age > ACTION.staleMin * 60 ? ' stale' : '');
   renderAction(m, age);
+  renderBudget();
   const [label, desc] = ROUTE[m.route] || [m.route, ''];
   $('mode-n').textContent = 'M' + m.mode;
   $('route').textContent = label;
@@ -336,24 +387,194 @@ function render() {
     if (d.week.resets_at) { let r = d.week.resets_at; while (r <= nowS()) r += 604800; pace = 100 * (1 - (r - nowS()) / 604800); }
     card.append(meter('5 小時', d.five), meter('每週', d.week, pace));
     if (d.surplus != null) card.append(el('div', { class: 'surplus' }, '週盈餘 ', el('b', {}, (d.surplus >= 0 ? '+' : '') + d.surplus.toFixed(0)), d.surplus >= 0 ? '（用得比週期慢，額度會剩）' : '（超速，照這速度會提前用完）'));
+    card.append(el('div', { class: 'burn' },
+      el('div', { class: 'burn-cap' }, el('span', {}, '本週期週用量'), el('span', {}, el('i', {}), '照週期進度'), el('span', {}, el('i', { class: 'proj', style: `border-top-color:${color}` }), '照目前速度推估')),
+      el('div', { class: 'burn-box', 'data-p': key, 'data-color': color }, el('div', { class: 'tip' })),
+      el('p', { class: 'burn-note' })));
     return card;
   };
   $('providers').replaceChildren(prov('claude', 'Claude Code', 'var(--claude)'), prov('codex', 'Codex', 'var(--codex)'));
 
+  const shares = modeShares(), maxShare = Math.max(1, ...Object.values(shares));
   const cols = ['rich', 'ok', 'lean', 'tight'], rows = ['rich', 'ok', 'tight'];
   const mx = [el('div', { class: 'h', style: 'font-size:10px' }, 'Claude＼Codex')].concat(cols.map(c => el('div', { class: 'h' }, TIER[c])));
   rows.forEach((r, i) => {
     mx.push(el('div', { class: 'h rh' }, TIER[r]));
     for (let j = 0; j < 4; j++) {
       const [n, rt] = [MATRIX[i][j * 2], MATRIX[i][j * 2 + 1]];
-      mx.push(el('div', { class: 'cell' + (String(n) === String(m.mode) ? ' on' : ''), title: ROUTE[rt][1] }, el('b', {}, 'M' + n), el('span', {}, ROUTE[rt][0])));
+      const sh = shares[n] || 0;
+      mx.push(el('div', { class: 'cell' + (String(n) === String(m.mode) ? ' on' : ''), 'data-mode': n, 'data-share': sh.toFixed(1),
+        title: `${ROUTE[rt][1]}${sh ? `　過去 7 天 ${sh.toFixed(1)}% 時間` : ''}`,
+        style: sh ? `background:color-mix(in oklab, var(--codex) ${Math.round(8 + 32 * sh / maxShare)}%, var(--surface-2))` : '' },
+        el('b', {}, 'M' + n), el('span', {}, ROUTE[rt][0]), sh ? el('small', {}, sh < 1 ? '<1%' : `${Math.round(sh)}%`) : null));
     }
   });
   $('matrix').replaceChildren(...mx);
   $('why').textContent = (snap.explain || []).join('\n');
+  renderReasons(m);
 
   renderReserves();
-  drawTrend();
+  drawCharts();
+}
+const drawCharts = () => { drawTrend(); drawBurns(); drawMatrixPath(); };
+
+const WEEK = 604800;
+// 目前週期：S＝開始、R＝結束（已過 reset 就往後推一週、用量歸零）
+function cycleOf(p) {
+  const w = snap[p]?.week;
+  if (!w || !w.resets_at) return null;
+  let R = w.resets_at; while (R <= nowS()) R += WEEK;
+  return { S: R - WEEK, R, used: w.resets_at <= nowS() ? 0 : w.used };
+}
+// 歷史每列代表到下一列的時間（最多 2 小時，超過算空窗）
+function weighted(pts) {
+  return pts.map((p, i) => [p, i < pts.length - 1 ? Math.min(pts[i + 1].t - p.t, 7200) : 1800]);
+}
+function modeShares() {
+  const pts = hist.filter(r => r.t >= nowS() - 7 * 86400), acc = {};
+  let tot = 0;
+  for (const [p, w] of weighted(pts)) { acc[p.mode] = (acc[p.mode] || 0) + w; tot += w; }
+  for (const k in acc) acc[k] = 100 * acc[k] / tot;
+  return acc;
+}
+
+function renderBudget() {
+  const tiles = ['claude', 'codex'].map(p => {
+    const c = cycleOf(p), now = nowS();
+    let b = ACTION.budget.none;
+    if (snap[p] && c) {
+      const left = Math.max(0, 100 - c.used), days = (c.R - now) / 86400;
+      if (days <= 1) b = ACTION.budget.lastDay(Math.round(left), whenBack(c.R, '重置'));
+      else { const v = left / days; b = ACTION.budget.perDay(v < 10 ? v.toFixed(1) : Math.round(v), Math.round(left), `${days.toFixed(1)} 天`, v > 100 / 7); }
+    }
+    return el('div', { class: 'budget-tile', 'data-p': p },
+      el('div', { class: 'bt-name' }, el('span', { class: 'dot', style: `background:var(--${p})` }), `${NAME[p]} 今天可用`),
+      el('p', { class: 'bt-num' }, b.num, el('small', {}, b.unit)), el('p', { class: 'bt-sub' }, b.sub));
+  });
+  $('budget').replaceChildren(...tiles);
+}
+
+// 週用量燃燒曲線：x＝本週期 7 天、y＝週已用 %；虛線＝照週期進度（對角線），點線＝照目前平均速度推估到週期結束
+function drawBurns() { document.querySelectorAll('.burn-box').forEach(box => drawBurn(box, box.dataset.p, box.dataset.color)); }
+function drawBurn(box, p, color) {
+  box.querySelector('svg')?.remove();
+  const note = box.parentElement.querySelector('.burn-note'), tip = box.querySelector('.tip');
+  const c = cycleOf(p), now = nowS(), k = p === 'claude' ? 'c' : 'x';
+  if (!c) { note.textContent = '讀不到週 reset 時間'; return; }
+  const seen = new Map();
+  for (const r of hist) {
+    if (r.t < c.S || r.t > now + 60 || r[k + '7'] == null) continue;
+    if (r[k + 'r'] != null && Math.abs(r[k + 'r'] - c.R) > 3600) continue;     // 有記 reset 時間時，只取同一個週期
+    seen.set(r.t, r[k + '7']);
+  }
+  if (snap.generated_at >= c.S) seen.set(snap.generated_at, c.used);
+  const pts = [...seen].sort((a, b) => a[0] - b[0]);
+  const W = box.clientWidth || 300, H = 150, L = 34, Rm = 12, T = 8, B = 20;
+  const x = t => L + (W - L - Rm) * (t - c.S) / WEEK, y = v => T + (H - T - B) * (100 - Math.min(100, v)) / 100;
+  const ns = 'http://www.w3.org/2000/svg', sv = (tag, a) => { const e = document.createElementNS(ns, tag); for (const q in a) e.setAttribute(q, a[q]); return e; };
+  const svg = sv('svg', { class: 'burn-svg', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${NAME[p]} 本週期週用量與推估` });
+  for (const v of [0, 50, 100]) {
+    svg.append(sv('line', { x1: L, x2: W - Rm, y1: y(v), y2: y(v), stroke: v ? 'var(--grid)' : 'var(--axis)', 'stroke-width': 1 }));
+    const tx = sv('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = v + '%'; svg.append(tx);
+  }
+  const step = W < 360 ? 2 : 1;
+  for (let i = 0; i <= 7; i += step) { const tx = sv('text', { x: x(c.S + i * 86400), y: H - 4, 'text-anchor': i === 0 ? 'start' : i === 7 ? 'end' : 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = md(c.S + i * 86400); svg.append(tx); }
+  svg.append(sv('line', { class: 'pace', x1: x(c.S), y1: y(0), x2: x(c.R), y2: y(100), stroke: 'var(--muted)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }));
+  const nowX = sv('line', { x1: x(Math.min(now, c.R)), x2: x(Math.min(now, c.R)), y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1 });
+  svg.append(nowX);
+  let msg = '週期剛開始，資料還不夠推估。', proj = 'none';
+  if (pts.length) {
+    const [tl, ul] = pts[pts.length - 1];
+    if (tl - c.S >= 0.05 * WEEK && ul > 0) {
+      const slope = ul / (tl - c.S), uEnd = ul + slope * (c.R - tl);
+      if (uEnd > 100) {
+        const tz = tl + (100 - ul) / slope;
+        svg.append(sv('path', { class: 'proj', d: `M${x(tl).toFixed(1)} ${y(ul).toFixed(1)}L${x(tz).toFixed(1)} ${y(100).toFixed(1)}`, stroke: color, 'stroke-width': 2, 'stroke-dasharray': '1 4', 'stroke-linecap': 'round', fill: 'none' }));
+        msg = `照目前速度約 ${md(tz)} ${hm(tz)} 見底（週期 ${md(c.R)} ${hm(c.R)} 才重置）。`; proj = 'empty';
+      } else {
+        svg.append(sv('path', { class: 'proj', d: `M${x(tl).toFixed(1)} ${y(ul).toFixed(1)}L${x(c.R).toFixed(1)} ${y(uEnd).toFixed(1)}`, stroke: color, 'stroke-width': 2, 'stroke-dasharray': '1 4', 'stroke-linecap': 'round', fill: 'none' }));
+        msg = `照目前速度，週期結束（${md(c.R)} ${hm(c.R)}）時約剩 ${Math.round(100 - uEnd)}%。`; proj = 'left';
+      }
+    }
+    if (pts.length > 1) svg.append(sv('path', { class: 'actual', d: pts.map(([t, v], i) => (i ? 'L' : 'M') + x(t).toFixed(1) + ' ' + y(v).toFixed(1)).join(''), fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    svg.append(sv('circle', { cx: x(tl), cy: y(ul), r: 4, fill: color, stroke: 'var(--surface)', 'stroke-width': 2 }));
+  }
+  note.textContent = msg; note.dataset.proj = proj;
+  const cross = sv('line', { y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden' });
+  const dot = sv('circle', { r: 4, fill: color, stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' });
+  const hit = sv('rect', { x: L, y: T, width: W - L - Rm, height: H - T - B, fill: 'transparent' });
+  const move = ev => {
+    if (!pts.length) return;
+    const bb = svg.getBoundingClientRect(), px = ((ev.touches ? ev.touches[0].clientX : ev.clientX) - bb.left) * W / bb.width;
+    const t = c.S + WEEK * Math.max(0, Math.min(1, (px - L) / (W - L - Rm)));
+    const [pt, pv] = pts.reduce((a, b) => Math.abs(b[0] - t) < Math.abs(a[0] - t) ? b : a);
+    for (const e of [cross]) { e.setAttribute('x1', x(pt)); e.setAttribute('x2', x(pt)); e.setAttribute('visibility', 'visible'); }
+    dot.setAttribute('cx', x(pt)); dot.setAttribute('cy', y(pv)); dot.setAttribute('visibility', 'visible');
+    tip.innerHTML = `${md(pt)} ${hm(pt)}<br>週已用 <b>${Math.round(pv)}%</b>　週期進度 <b>${Math.round(100 * (pt - c.S) / WEEK)}%</b>`;
+    tip.style.display = 'block';
+    tip.style.left = Math.min(bb.width - tip.offsetWidth, Math.max(0, x(pt) * bb.width / W - tip.offsetWidth / 2)) + 'px'; tip.style.top = '-30px';
+  };
+  const leave = () => { cross.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); tip.style.display = 'none'; };
+  hit.addEventListener('pointermove', move); hit.addEventListener('pointerleave', leave); hit.addEventListener('touchmove', move, { passive: true }); hit.addEventListener('touchend', leave);
+  svg.append(cross, dot, hit);
+  box.prepend(svg);
+}
+
+// 矩陣上畫最近 24 小時走過的模式（相鄰重複合併），終點是目前模式
+function drawMatrixPath() {
+  const box = $('matrix');
+  box.querySelector('svg.path')?.remove();
+  const seq = [];
+  for (const r of hist.filter(r => r.t >= nowS() - 86400).concat([{ mode: +snap.mode.mode }])) if (seq[seq.length - 1] !== r.mode) seq.push(r.mode);
+  const changes = seq.length - 1;
+  $('matrix-note').textContent = `顏色越深＝過去 7 天停留越久；${changes ? `折線＝最近 24 小時走過的模式（${changes} 次切換，終點是現在）` : '最近 24 小時沒有切換模式'}。列：Claude 7d 等級；欄：Codex 7d 等級（已含重置卷）。5h 只做暫時覆寫。`;
+  if (!changes) return;
+  const bb = box.getBoundingClientRect();
+  const ctr = n => { const c = box.querySelector(`.cell[data-mode="${n}"]`)?.getBoundingClientRect(); return c && [c.right - bb.left - 9, c.top - bb.top + 9]; };   // 格子右上角，不壓到文字
+  const P = seq.map(ctr).filter(Boolean);
+  const ns = 'http://www.w3.org/2000/svg', sv = (tag, a) => { const e = document.createElementNS(ns, tag); for (const q in a) e.setAttribute(q, a[q]); return e; };
+  const svg = sv('svg', { class: 'path', viewBox: `0 0 ${bb.width} ${bb.height}`, 'aria-hidden': 'true' });
+  svg.append(sv('polyline', { points: P.map(q => q.join(',')).join(' '), fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1.5, 'stroke-opacity': 0.55, 'stroke-linejoin': 'round' }));
+  P.forEach((q, i) => svg.append(sv('circle', { cx: q[0], cy: q[1], r: i === P.length - 1 ? 5 : 3, fill: i === P.length - 1 ? 'var(--codex)' : 'var(--ink)', 'fill-opacity': i === P.length - 1 ? 1 : 0.55, stroke: 'var(--surface)', 'stroke-width': 1.5 })));
+  box.append(svg);
+}
+
+// 「為什麼是這個模式」：把 explain 與 snapshot 數字翻成白話的判斷步驟
+function renderReasons(m) {
+  const ex = snap.explain || [], line = p => (ex.find(l => l.startsWith(p + ':')) || '').replace(/^\w+:\s*\w+\s*—\s*/, '');
+  const sg = v => (v >= 0 ? '+' : '−') + Math.abs(Math.round(v));
+  const cardAdj = {};
+  for (const l of ex) { const q = l.match(/^note:\s+(claude|codex) (\w+) → (\w+)（有 (\d+) 張卷）/); if (q) cardAdj[q[1]] = { from: q[2], to: q[3], n: q[4] }; }
+  const adj = p => cardAdj[p] ? `；有 ${cardAdj[p].n} 張重置卷 → 視同${TIER[cardAdj[p].to]}` : '';
+  const items = [];
+  const c = snap.claude, cl = line('claude');
+  const ct = cardAdj.claude?.from || m.claude;
+  if (!c) items.push(['Claude', '讀不到額度資料 → 視為正常，主控預設 Opus']);
+  else if (/stale|no state|unreadable/.test(cl)) items.push(['Claude', `讀數過期或讀不到（${cl.replace(/ → .*/, '')}）→ 無法判斷，視為正常、主控預設 Opus`]);
+  else {
+    const th = cl.match(/tight ≤ -(\d+) or week left < (\d+); rich ≥ (\d+)/) || [0, 15, 15, 15];
+    const [def, lmin, rich] = th.slice(1).map(Number), left = 100 - c.week.used, sv = c.surplus;
+    items.push(['Claude', (ct === 'rich' ? `${TIER.rich}：週盈餘 ${sg(sv)} ≥ 充裕門檻 ${rich}`
+      : ct === 'tight' ? `${TIER.tight}：${left < lmin ? `週剩 ${Math.round(left)}% < ${lmin}%` : `週盈餘 ${sg(sv)} ≤ −${def}`}`
+      : `${TIER.ok}：週盈餘 ${sg(sv)}，介於 −${def} 與充裕門檻 ${rich} 之間`) + adj('claude')]);
+  }
+  const x = snap.codex, xt = cardAdj.codex?.from || m.codex, T = ACTION.thr;
+  if (!x || xt === 'unknown') items.push(['Codex', '讀不到額度 → 保守當作超速（不把工作推給 Codex）']);
+  else {
+    const left = 100 - x.week.used, sv = x.surplus;
+    items.push(['Codex', (xt === 'tight' ? `${TIER.tight}：${left < T.leftTight ? `週剩 ${Math.round(left)}% < ${T.leftTight}%` : `週盈餘 ${sg(sv)} ≤ −${T.codexDeficit}`}`
+      : xt === 'rich' ? `${TIER.rich}：週盈餘 ${sg(sv)} ≥ ${T.codexRich}`
+      : xt === 'lean' ? `${TIER.lean}：週盈餘 ${sg(sv)} < 0（用得比週期快）`
+      : `${TIER.ok}：週盈餘 ${sg(sv)}，介於 0 與 ${T.codexRich} 之間`) + adj('codex')]);
+  }
+  const base = MATRIX.flat().reduce((a, v, i, arr) => v === +m.mode && typeof v === 'number' ? arr[i + 1] : a, null);
+  items.push(['矩陣', `Claude ${TIER[m.claude] || m.claude} × Codex ${TIER[m.codex === 'unknown' ? 'lean' : m.codex] || m.codex} → M${m.mode}「${(ROUTE[base] || [base])[0]}」`]);
+  if (m.override && m.override !== '-') {
+    const ov = ACTION.override[m.override] ? ACTION.override[m.override](actionCtx())[1] : m.override;
+    items.push(['覆寫', `${ov}${base && base !== m.route ? `→ 改為「${(ROUTE[m.route] || [m.route])[0]}」` : ''}`]);
+  }
+  items.push(['主控', m.hub === 'opus' ? (m.claude === 'tight' ? 'Opus：Claude 吃緊但手上有重置卷，先用卷不降級' : 'Opus：Claude 週額度不吃緊') : 'Sonnet：Claude 週額度吃緊、沒有可用的重置卷']);
+  $('reasons').replaceChildren(...items.map(([k, t]) => el('li', {}, el('span', {}, el('b', {}, k + ' '), t))));
 }
 
 // 重置卷與點數時間軸：每項一條 lane，共用同一個時間範圍；今天一條直線，未到期的畫「今天 → 到期」區段，已用／過期灰掉
@@ -389,22 +610,26 @@ function drawTrend() {
   const pts = hist.filter(r => r.t >= nowS() - 7 * 86400);
   if (pts.length < 2) { if (!box.querySelector('.empty')) box.prepend(el('p', { class: 'empty' }, '歷史資料累積中（每 30 分鐘一筆）')); $('table').replaceChildren(); return; }
   box.querySelector('.empty')?.remove();
-  const W = box.clientWidth || 600, H = 240, L = 36, R = 56, T = 12, B = 26;
+  // 版面：上方折線區 T..PB，下方日期、覆寫／用卷標記、route 時間帶（共用同一條 x 軸）
+  const W = box.clientWidth || 600, H = 262, L = 40, R = 56, T = 12, PB = 196, DATE_Y = 212, MARK_Y = 228, SY = 236, SH = 16;
   const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
   const vals = pts.flatMap(p => [p.cs, p.xs]).filter(v => v != null);
   let lo = Math.min(-30, ...vals), hi = Math.max(30, ...vals);
   lo = Math.floor(lo / 10) * 10; hi = Math.ceil(hi / 10) * 10;
   const x = t => L + (W - L - R) * (t1 === t0 ? 0 : (t - t0) / (t1 - t0));
-  const y = v => T + (H - T - B) * (hi - v) / (hi - lo);
+  const y = v => T + (PB - T) * (hi - v) / (hi - lo);
   const ns = 'http://www.w3.org/2000/svg';
   const s = (tag, a) => { const e = document.createElementNS(ns, tag); for (const k in a) e.setAttribute(k, a[k]); return e; };
-  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Claude 與 Codex 週盈餘 7 天趨勢' });
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Claude 與 Codex 週盈餘 7 天趨勢，以及每個時段建議的使用途徑' });
+  const defs = s('defs', {}), pat = s('pattern', { id: 'hatch', patternUnits: 'userSpaceOnUse', width: 6, height: 6, patternTransform: 'rotate(45)' });
+  pat.append(s('rect', { width: 6, height: 6, fill: 'var(--surface-2)' }), s('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: 'var(--r-hold)', 'stroke-width': 3 }));
+  defs.append(pat); svg.append(defs);
   for (let v = lo; v <= hi; v += 10) {
     svg.append(s('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }));
     if (v % 20 === 0 || v === 0) { const tx = s('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = (v > 0 ? '+' : '') + v; svg.append(tx); }
   }
   const days = new Set();
-  for (const p of pts) { const d = new Date(p.t * 1000); const key = d.toDateString(); if (!days.has(key) && d.getHours() < 2) { days.add(key); const tx = s('text', { x: x(p.t), y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = `${d.getMonth() + 1}/${d.getDate()}`; svg.append(tx); } }
+  for (const p of pts) { const d = new Date(p.t * 1000); const key = d.toDateString(); if (!days.has(key) && d.getHours() < 2) { days.add(key); const tx = s('text', { x: x(p.t), y: DATE_Y, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = `${d.getMonth() + 1}/${d.getDate()}`; svg.append(tx); } }
   const series = [['cs', 'var(--claude)', 'Claude'], ['xs', 'var(--codex)', 'Codex']];
   for (const [k, c, name] of series) {
     const seg = pts.filter(p => p[k] != null);
@@ -414,10 +639,32 @@ function drawTrend() {
     svg.append(s('circle', { cx: x(last.t), cy: y(last[k]), r: 4, fill: c, stroke: 'var(--surface)', 'stroke-width': 2 }));
     const tx = s('text', { x: x(last.t) + 8, y: y(last[k]) + 4, 'font-size': 12, fill: 'var(--ink-2)' }); tx.textContent = `${name} ${last[k] >= 0 ? '+' : ''}${Math.round(last[k])}`; svg.append(tx);
   }
-  const cross = s('line', { y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden' });
+  const grp = p => ACTION.routeGroup[p.route] || 'cost';
+  const strip = s('g', { class: 'strip' });
+  for (let i = 0; i < pts.length - 1; i++) {
+    let j = i;
+    while (j < pts.length - 1 && grp(pts[j]) === grp(pts[i]) && pts[j + 1].t - pts[j].t <= 7200) j++;
+    const x0 = x(pts[i].t), x1 = x(pts[j].t);
+    if (x1 - x0 >= 0.5) strip.append(s('rect', { x: x0, y: SY, width: x1 - x0, height: SH, rx: 2, fill: ACTION.groups[grp(pts[i])][1], stroke: 'var(--surface)', 'stroke-width': 1, 'data-group': grp(pts[i]) }));
+    i = Math.max(i, j - 1);           // 下一段從 j 開始；遇到空窗（j === i）就單純往下走
+  }
+  const lab = s('text', { x: L - 6, y: SY + SH - 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); lab.textContent = '建議';
+  svg.append(strip, lab);
+  const marks = s('g', { class: 'marks' });
+  pts.forEach((p, i) => {
+    const prev = pts[i - 1] || {};
+    const on = (k, v) => v && v !== '-' && v !== prev[k];
+    if (on('override', p.override)) { const t = s('text', { class: 'm-ov', x: x(p.t), y: MARK_Y, 'text-anchor': 'middle', 'font-size': 10, fill: 'var(--warning)' }); t.textContent = '▲'; marks.append(t); }
+    if (on('card', p.card)) { const t = s('text', { class: 'm-card', x: x(p.t) + 7, y: MARK_Y, 'text-anchor': 'middle', 'font-size': 10, fill: 'var(--ink-2)' }); t.textContent = '◆'; marks.append(t); }
+  });
+  svg.append(marks);
+  $('route-legend').replaceChildren(...Object.entries(ACTION.groups).map(([k, [name, fill]]) =>
+    el('span', {}, el('i', { class: 'sw', style: k === 'hold' ? 'background:repeating-linear-gradient(45deg,var(--r-hold) 0 2px,var(--surface-2) 2px 5px)' : `background:${fill}` }), name)),
+    el('span', {}, el('b', { style: 'color:var(--warning);font-size:11px' }, '▲'), '5h 覆寫開始'), el('span', {}, el('b', { style: 'font-size:11px' }, '◆'), '用卷建議'));
+  const cross = s('line', { y1: T, y2: SY + SH, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden' });
   const dots = series.map(([, c]) => s('circle', { r: 4, fill: c, stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' }));
   svg.append(cross, ...dots);
-  const hit = s('rect', { x: L, y: T, width: W - L - R, height: H - T - B, fill: 'transparent' });
+  const hit = s('rect', { x: L, y: T, width: W - L - R, height: SY + SH - T, fill: 'transparent' });
   const move = ev => {
     const bb = svg.getBoundingClientRect(), px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - bb.left;
     const t = t0 + (t1 - t0) * Math.max(0, Math.min(1, (px * W / bb.width - L) / (W - L - R)));
@@ -425,7 +672,8 @@ function drawTrend() {
     cross.setAttribute('x1', x(p.t)); cross.setAttribute('x2', x(p.t)); cross.setAttribute('visibility', 'visible');
     series.forEach(([k], i) => { if (p[k] == null) return dots[i].setAttribute('visibility', 'hidden'); dots[i].setAttribute('cx', x(p.t)); dots[i].setAttribute('cy', y(p[k])); dots[i].setAttribute('visibility', 'visible'); });
     const d = new Date(p.t * 1000);
-    tip.innerHTML = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · M${p.mode} ${(ROUTE[p.route] || [p.route])[0]}<br>Claude <b>${p.cs == null ? '–' : (p.cs >= 0 ? '+' : '') + Math.round(p.cs)}</b>　Codex <b>${p.xs == null ? '–' : (p.xs >= 0 ? '+' : '') + Math.round(p.xs)}</b>`;
+    const extra = [p.override && p.override !== '-' ? '▲ 覆寫 ' + p.override : '', p.card && p.card !== '-' ? '◆ ' + p.card : ''].filter(Boolean).join('　');
+    tip.innerHTML = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · M${p.mode} ${(ROUTE[p.route] || [p.route])[0]}（${ACTION.groups[grp(p)][0]}）<br>Claude <b>${p.cs == null ? '–' : (p.cs >= 0 ? '+' : '') + Math.round(p.cs)}</b>　Codex <b>${p.xs == null ? '–' : (p.xs >= 0 ? '+' : '') + Math.round(p.xs)}</b>${extra ? '<br>' + extra : ''}`;
     tip.style.display = 'block';
     const tx = x(p.t) * bb.width / W;
     tip.style.left = Math.min(bb.width - tip.offsetWidth, Math.max(0, tx - tip.offsetWidth / 2)) + 'px';
@@ -436,9 +684,9 @@ function drawTrend() {
   svg.append(hit);
   box.prepend(svg);
   const recent = pts.slice(-48).reverse();
-  const tb = el('table', {}, el('tr', {}, ...['時間', '模式', 'Claude 5h', 'Claude 7d', 'Claude 盈餘', 'Codex 5h', 'Codex 7d', 'Codex 盈餘'].map(h => el('th', {}, h))));
+  const tb = el('table', {}, el('tr', {}, ...['時間', '模式', '建議', 'Claude 5h', 'Claude 7d', 'Claude 盈餘', 'Codex 5h', 'Codex 7d', 'Codex 盈餘'].map(h => el('th', {}, h))));
   const f = v => v == null ? '–' : Math.round(v);
-  for (const p of recent) { const d = new Date(p.t * 1000); tb.append(el('tr', {}, ...[`${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, 'M' + p.mode, f(p.c5) + '%', f(p.c7) + '%', f(p.cs), f(p.x5) + '%', f(p.x7) + '%', f(p.xs)].map(v => el('td', {}, String(v))))); }
+  for (const p of recent) { const d = new Date(p.t * 1000); tb.append(el('tr', {}, ...[`${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, 'M' + p.mode, (ROUTE[p.route] || [p.route])[0], f(p.c5) + '%', f(p.c7) + '%', f(p.cs), f(p.x5) + '%', f(p.x7) + '%', f(p.xs)].map(v => el('td', {}, String(v))))); }
   $('table').replaceChildren(tb);
 }
 
@@ -485,7 +733,7 @@ async function load() {
 load();
 setInterval(() => safeRender(), 30000);
 setInterval(load, 5 * 60000);
-addEventListener('resize', () => safeRender(drawTrend));
+addEventListener('resize', () => safeRender(drawCharts));
 </script>
 </body>
 </html>

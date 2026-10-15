@@ -116,5 +116,13 @@ unset RESV
 want=$(sed -nE 's/^CARD_USE_LEFT="\$\{CARD_USE_LEFT:-([0-9.]+)\}"$/\1/p' "$ROOT/bin/quota-mode.sh")
 got=$(sed -nE 's/^ *cardUseLeft: *([0-9.]+),.*/\1/p' "$ROOT/site/index.html")
 eq "門檻同步：site ACTION.cardUseLeft ＝ quota-mode.sh CARD_USE_LEFT（${want}）" "${want:-缺}" "${got:-缺}"
+# 網頁「為什麼是這個模式」的 Codex 門檻 ACTION.thr ＝ quota-mode.sh 預設值
+thr_line=$(grep -E '^ *thr: *\{' "$ROOT/site/index.html")
+for pair in leftTight:LEFT_TIGHT codexDeficit:CODEX_DEFICIT codexRich:CODEX_RICH; do
+  js=${pair%%:*}; sh=${pair##*:}
+  want=$(sed -nE "s/^${sh}=\"\\\$\{${sh}:-([0-9.]+)\}\"$/\1/p" "$ROOT/bin/quota-mode.sh")
+  got=$(printf '%s' "$thr_line" | sed -nE "s/.*${js}: *([0-9.]+).*/\1/p")
+  eq "門檻同步：site ACTION.thr.${js} ＝ quota-mode.sh ${sh}（${want}）" "${want:-缺}" "${got:-缺}"
+done
 
 echo "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]
