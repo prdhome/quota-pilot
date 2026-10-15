@@ -13,7 +13,17 @@ const ng = (m, why) => { fail++; console.log(`  ❌ ${m}${why ? `\n     ${why}` 
 const check = (m, cond, why) => cond ? ok(m) : ng(m, why);
 const VIEWPORTS = [{ width: 1200, height: 900, tag: 'desktop' }, { width: 375, height: 812, tag: 'mobile' }];
 
-const browser = await chromium.launch();
+// Playwright 自帶的 Chromium 沒裝時（本機常見），退回系統安裝的 Google Chrome；PW_CHANNEL 可強制指定（例：chrome）。
+async function launch() {
+  if (process.env.PW_CHANNEL) return chromium.launch({ channel: process.env.PW_CHANNEL });
+  try { return await chromium.launch(); }
+  catch (e) {
+    if (!/Executable doesn't exist/.test(e.message)) throw e;
+    console.log('  ℹ️ 找不到 Playwright Chromium，改用系統 Chrome（channel: chrome）');
+    return chromium.launch({ channel: 'chrome' });
+  }
+}
+const browser = await launch();
 async function open(url, vp, setup) {
   const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
   const errors = [];
