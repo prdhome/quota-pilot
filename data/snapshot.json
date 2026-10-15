@@ -1,5 +1,5 @@
 {
- "generated_at": 1792066770,
+ "generated_at": 1792068574,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -11,22 +11,22 @@
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 86% used 59% surplus 27 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 38%",
-  "codex:  rich — 5h left 84% week left 98% surplus -1",
+  "claude: rich — week elapsed 86% used 59% surplus 27 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 36%",
+  "codex:  rich — 5h left 84% week left 98% surplus -0",
   "matrix: (rich,rich) → mode 1; override weekend-claude → route direct",
   "note:   codex lean → rich（有 3 張卷）"
  ],
  "claude": {
   "five": {
-   "used": 62.0,
+   "used": 64.0,
    "resets_at": 1792075200.0
   },
   "week": {
    "used": 59.0,
    "resets_at": 1792152000.0
   },
-  "updated_at": 1792066720,
-  "surplus": 26.9
+  "updated_at": 1792068437,
+  "surplus": 27.2
  },
  "codex": {
   "five": {
@@ -37,7 +37,7 @@
    "used": 2.0,
    "resets_at": 1792662576.0
   },
-  "surplus": -0.5
+  "surplus": -0.2
  },
  "cards": [
   {
