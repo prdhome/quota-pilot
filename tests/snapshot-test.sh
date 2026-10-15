@@ -21,11 +21,11 @@ for f in "$ROOT"/tests/fixtures/*.json; do
   if snap "$d" > "$d/snapshot.json" 2>"$d/err"; then check "$n" "$d/snapshot.json" "$f"; else ng "${n}：snapshot.sh 失敗" "$(cat "$d/err")"; fi
 done
 
-# Codex 讀不到（QP_CODEX_TSV=-）→ codex=null、矩陣當 ok
+# Codex 讀不到（QP_CODEX_TSV=-）→ codex=null、矩陣當 lean（2026-10-15）
 d="$T/rich"; snap "$d" - > "$d/nocodex.json"
-check "Codex 讀不到 → codex null、mode=2 codex=unknown" "$d/nocodex.json"
+check "Codex 讀不到 → codex null、mode=3 codex=unknown" "$d/nocodex.json"
 got=$(python3 -I -c 'import json,sys; s=json.load(open(sys.argv[1])); print(s["codex"], s["mode"]["mode"], s["mode"]["codex"])' "$d/nocodex.json")
-[[ $got == "None 2 unknown" ]] && ok "Codex 讀不到的判定值" || ng "Codex 讀不到的判定值" "got '$got'"
+[[ $got == "None 3 unknown" ]] && ok "Codex 讀不到的判定值" || ng "Codex 讀不到的判定值" "got '$got'"
 
 # Claude state 缺檔 → claude=null、主控預設 opus
 d="$T/rich"; mv "$d/state/rate_limits.json" "$d/state/gone.json"; snap "$d" > "$d/noclaude.json"

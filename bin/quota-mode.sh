@@ -8,7 +8,7 @@
 #   4. 其餘照矩陣；5. 週末清倉：某邊 7d 在 24h 內 reset 且盈餘 ≥ WEEKEND → 放寬那一邊（override=weekend-*）
 #   route：delegate 傾向派工｜cost 照成本判準｜direct 傾向直做｜no-codex 不派 Codex｜small-only 只直做小任務、大的等 reset｜hold 非急件延後
 #   Claude：rich = 週盈餘達 pick-model.sh 門檻（只看 7d；5h 交給覆寫層，hub 欄才另看 5h）；tight = 週盈餘 ≤ −CLAUDE_DEFICIT 或週剩 < LEFT_TIGHT；其餘 ok。
-#   Codex ：tight = 週剩 < LEFT_TIGHT 或週盈餘 ≤ −CODEX_DEFICIT；rich = 週盈餘 ≥ CODEX_RICH；lean = 週盈餘 < 0；其餘 ok；讀不到 = unknown（矩陣當 ok）。
+#   Codex ：tight = 週剩 < LEFT_TIGHT 或週盈餘 ≤ −CODEX_DEFICIT；rich = 週盈餘 ≥ CODEX_RICH；lean = 週盈餘 < 0；其餘 ok；讀不到 = unknown（矩陣當 lean：不因額度不明而把工作推給 Codex；2026-10-15）。
 #   重置卷（bin/quota-reserve.sh，~/.claude/state/quota-reserves.json）：該邊有未用、未過期的卷 → lean／tight 視同 ok（hub 不降 sonnet）；≥2 張 → ok／lean 視同 rich；
 #   card 欄提示用卷：<邊>:use = 週剩 ≤ CARD_USE_LEFT 且自然 reset > 24h；<邊>:expiring = 最早到期卷 48h 內到期、週已用 ≥ 50% 且自然 reset > 24h。用卷由使用者手動按，按完跑 `quota-reserve.sh use <邊>`。
 # `--explain` 附依據到 stderr。測試用：`--codex-tsv "<5h> <7d> <5h_reset> <7d_reset>"`、`--now EPOCH`、其餘參數（--state、--current）轉給 pick-model.sh。
@@ -80,7 +80,7 @@ if hub == "sonnet" and claude != "tight" and live("claude"): hub = "opus"
 M = {("rich", "rich"): (1, "delegate"), ("rich", "ok"): (2, "cost"), ("rich", "lean"): (3, "direct"), ("rich", "tight"): (4, "no-codex"),
      ("ok", "rich"): (5, "delegate"), ("ok", "ok"): (6, "cost"), ("ok", "lean"): (7, "cost"), ("ok", "tight"): (8, "small-only"),
      ("tight", "rich"): (9, "delegate"), ("tight", "ok"): (10, "delegate"), ("tight", "lean"): (11, "hold"), ("tight", "tight"): (12, "hold")}
-mode, route = M[(claude, "ok" if codex == "unknown" else codex)]
+mode, route = M[(claude, "lean" if codex == "unknown" else codex)]
 c5 = c["left5"] if c else 100.0
 x5 = x["left5"] if x else 100.0
 c_up, x_up = claude != "tight", codex != "tight"
@@ -92,7 +92,7 @@ if c5 < block or x5 < block:                                   # 1. 5h 快見底
     else: route, ov = ("no-codex" if c_up else "hold"), "codex5h"
     if c and c5 < block and soon(c["r5"]): notes.append("Claude 5h 1 小時內 reset，可等")
     if x and x5 < block and soon(x["r5"]): notes.append("Codex 5h 1 小時內 reset，可等")
-elif c5 < low and x5 >= low and codex in ("rich", "ok", "unknown") and route in ("direct", "cost"):   # 3. 5h 偏低：暫轉另一邊（Codex 超速時不轉，維持原 route、放慢）
+elif c5 < low and x5 >= low and codex in ("rich", "ok") and route in ("direct", "cost"):   # 3. 5h 偏低：暫轉另一邊（Codex 超速時不轉，維持原 route、放慢）
     route, ov = "delegate", "claude5h-low"
 elif x5 < low and c5 >= low and c_up and route in ("delegate", "cost"):
     route, ov = "direct", "codex5h-low"
