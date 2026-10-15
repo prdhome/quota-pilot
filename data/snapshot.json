@@ -1,0 +1,72 @@
+{
+ "generated_at": 1792037876,
+ "mode": {
+  "mode": "1",
+  "hub": "opus",
+  "route": "delegate",
+  "subagent": "opus",
+  "claude": "rich",
+  "codex": "rich",
+  "override": "-",
+  "card": "-"
+ },
+ "explain": [
+  "claude: rich — week elapsed 81% used 51% surplus 30 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 25%",
+  "codex:  rich — 5h left 52% week left 51% surplus -22",
+  "matrix: (rich,rich) → mode 1; override - → route delegate",
+  "note:   codex lean → rich（有 3 張卷）"
+ ],
+ "claude": {
+  "five": {
+   "used": 75.0,
+   "resets_at": 1792038600.0
+  },
+  "week": {
+   "used": 51.0,
+   "resets_at": 1792152000.0
+  },
+  "updated_at": 1792037869,
+  "surplus": 30.1
+ },
+ "codex": {
+  "five": {
+   "used": 48.0,
+   "resets_at": 1792038619.0
+  },
+  "week": {
+   "used": 49.0,
+   "resets_at": 1792476480.0
+  },
+  "surplus": -21.5
+ },
+ "cards": [
+  {
+   "provider": "claude",
+   "expires": "2026-10-23T00:00:00+08:00",
+   "used_at": null
+  },
+  {
+   "provider": "codex",
+   "expires": "2026-10-23T02:29:00+08:00",
+   "used_at": null
+  },
+  {
+   "provider": "codex",
+   "expires": "2026-10-30T02:19:00+08:00",
+   "used_at": null
+  },
+  {
+   "provider": "codex",
+   "expires": "2026-11-07T06:39:00+08:00",
+   "used_at": null
+  }
+ ],
+ "credits": [
+  {
+   "provider": "claude-cloud",
+   "usd_left": 92,
+   "usd_total": 100,
+   "expires": "2026-11-05T15:59:00+08:00"
+  }
+ ]
+}
