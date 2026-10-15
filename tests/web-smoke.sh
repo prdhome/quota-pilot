@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # site/index.html 冒煙測試：把 tests/fixtures 每組情境做成暫存網站（site/ ＋ 假 data/），起靜態伺服器，用 Playwright（Chromium）逐一載入檢查。
-# 需要 node；第一次跑會在 tests/web/ 安裝 playwright（npm ci），沒有瀏覽器時先跑：npx --prefix tests/web playwright install chromium
+# 需要 node；第一次跑會在 tests/web/ 安裝 playwright（npm ci），沒有 Playwright Chromium 時自動改用系統 Google Chrome（或 PW_CHANNEL=chrome 強制）；兩者都沒有才需 npx --prefix tests/web playwright install chromium
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; T="$(mktemp -d)"; srv=""
 trap '[ -n "$srv" ] && kill "$srv" 2>/dev/null; rm -rf "$T"' EXIT
