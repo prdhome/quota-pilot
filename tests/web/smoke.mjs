@@ -67,6 +67,12 @@ for (const name of names) {
         paths: q('#chart svg path').length,
         tableRows: q('#table tr').length,
         hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        budget: [...q('#budget .budget-tile')].map(e => e.innerText.replace(/\n/g, ' ')),
+        burns: [...q('#providers .burn-box')].map(b => { const n = b.parentElement.querySelector('.burn-note');
+          return { p: b.dataset.p, svg: !!b.querySelector('svg'), actual: b.querySelectorAll('path.actual').length, pace: b.querySelectorAll('line.pace').length, proj: n.dataset.proj, note: n.textContent }; }),
+        strip: q('#chart .strip rect').length, legendRoutes: q('#route-legend > span').length,
+        shares: [...q('#matrix .cell')].map(e => +e.dataset.share || 0), onShare: +(document.querySelector('#matrix .cell.on')?.dataset.share || 0),
+        reasons: [...q('#reasons li')].map(e => e.textContent),
       };
     });
     const want = sc.expect.mode, providers = ['claude', 'codex'].filter(p => sc[p]).length;
@@ -90,6 +96,21 @@ for (const name of names) {
       JSON.stringify({ resRows: r.resRows, resUsed: r.resUsed, today: r.today, lanes: r.lanesWithNow, resEmpty: r.resEmpty }));
     check(`${t}：趨勢圖 ${providers} 條線＋表格`, r.paths === providers && r.tableRows > 1, JSON.stringify({ paths: r.paths, tableRows: r.tableRows }));
     check(`${t}：無水平捲動`, !r.hscroll);
+    // --- 第一批視覺化：今日預算、燃燒曲線、route 時間帶、矩陣熱度、白話判斷 ---
+    check(`${t}：今日預算 2 格、各有每日 % 或「今天用完」`, r.budget.length === 2 && ['claude', 'codex'].every((p, i) => !sc[p] || /% \/ 天|今天用完/.test(r.budget[i])), JSON.stringify(r.budget));
+    const WEEK = 7 * 86400;
+    for (const p of ['claude', 'codex'].filter(p => sc[p])) {
+      const b = r.burns.find(x => x.p === p), e = 100 * (1 - sc[p].week_reset_in / WEEK), want = sc[p].week_used / e * 100 > 100 ? 'empty' : 'left';
+      check(`${t}：${p} 燃燒曲線（實線＋進度虛線＋推估「${want === 'empty' ? '見底' : '結束時剩'}」）`,
+        b && b.svg && b.actual === 1 && b.pace === 1 && b.proj === want && (want === 'empty' ? /見底/ : /約剩 \d+%/).test(b.note), JSON.stringify(b));
+    }
+    check(`${t}：route 時間帶有色段＋圖例 6 項`, r.strip >= 1 && r.legendRoutes === 6, JSON.stringify({ strip: r.strip, legend: r.legendRoutes }));
+    const sum = r.shares.reduce((a, b) => a + b, 0);
+    check(`${t}：矩陣熱度占比合計 ≈100%、目前格 > 0`, Math.abs(sum - 100) <= 1.5 && r.onShare > 0, JSON.stringify({ sum, on: r.onShare }));
+    const wantWhy = [r.reasons[0]?.startsWith('Claude'), r.reasons[1]?.startsWith('Codex'), r.reasons.some(x => x.includes(`M${want.mode}`)),
+      want.override === '-' || r.reasons.some(x => x.startsWith('覆寫')), r.reasons.some(x => x.startsWith('主控') && x.includes(want.hub === 'opus' ? 'Opus' : 'Sonnet')),
+      !r.reasons[0]?.startsWith('Claude') || r.reasons[0].includes(sc.snapshot_age > 0 && sc.claude?.updated_ago > 21600 ? '過期' : { rich: '充裕', ok: '正常', tight: '吃緊' }[want.claude === 'ok' && sc.reserves?.cards?.some(c => c.provider === 'claude' && !c.used_at) ? 'tight' : want.claude])];
+    check(`${t}：「為什麼是這個模式」逐步說明（Claude／Codex／矩陣／覆寫／主控）`, r.reasons.length >= 4 && wantWhy.every(Boolean), JSON.stringify({ reasons: r.reasons, wantWhy }));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
     await page.close();
   }
