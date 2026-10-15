@@ -7,7 +7,7 @@
 # `--current opus`：已在 Opus 時 DEFICIT 加 HYST（遲滯），避免在門檻附近來回建議切換。
 # `--detail`：stdout 在模型後附 `<盈餘> <5h剩%> <週剩%> <5h_reset> <週reset> <週盈餘達 rich 門檻 1|0>`（給 quota-mode.sh 的矩陣等級用；
 #   rich 門檻 = SURPLUS_MIN × min(1, 週期已過% / RAMP)，週初較低）。讀不到資料時只印模型。
-# 測試用：`--state FILE`、`--now EPOCH`。測試：tests/policy-test.sh。
+# 測試用：`--state FILE`、`--now EPOCH`。測試：tests/policy-test.sh。門檻同步：orchestrator mods/quota-monitor/hooks/lib.ts（orchestrator tests/quota-policy-test.sh 檢查）。
 # 用法：claude --model "$(bin/pick-model.sh)"
 DEFICIT="${PICK_DEFICIT:-15}"
 LEFT_MIN="${PICK_LEFT_MIN:-15}"

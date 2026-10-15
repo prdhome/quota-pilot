@@ -2,6 +2,8 @@
 # publish.sh — 產生 snapshot、追加歷史，推到 gh-pages 分支（GitHub Pages 來源）。給 launchd 每 30 分鐘跑；不耗 LLM token。
 #   --init     建立 gh-pages 孤兒分支的 worktree（.pages/，已 gitignore）並首次推送
 #   --dry-run  只更新 .pages/ 不 commit／push（本機預覽：python3 -m http.server -d .pages）
+# 網頁取 origin/main 的 site/（雲端合併的外觀改動自動上線；本機 site/ 未推的改動不會發佈）；fetch 失敗退回本機 site/。
+#   安全：只同步不在本機執行的 site/；bin/ 等會在本機執行的程式碼一律由使用者看過 diff 後手動 git pull。
 # 歷史 data/history.jsonl 只留 14 天。資料沒變（同一個 generated_at 分鐘內）也會照推，失敗不重試（下一輪再推）。
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; P="$ROOT/.pages"; DRY=0
@@ -13,7 +15,11 @@ case "${1:-}" in
 esac
 [ -d "$P" ] || { echo "先跑 publish.sh --init" >&2; exit 1; }
 mkdir -p "$P/data"
-cp -R "$ROOT/site/." "$P/"
+if git -C "$ROOT" fetch -q origin main 2>/dev/null; then
+  git -C "$ROOT" archive origin/main site | tar -x -C "$P" --strip-components=1 || exit 1
+else
+  cp -R "$ROOT/site/." "$P/"
+fi
 touch "$P/.nojekyll"
 snap="$("$ROOT/bin/snapshot.sh")" || exit 1
 printf '%s\n' "$snap" > "$P/data/snapshot.json"
