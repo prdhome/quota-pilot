@@ -4,7 +4,7 @@
 #   --dry-run  只更新 .pages/ 不 commit／push（本機預覽：python3 -m http.server -d .pages）
 # 網頁取 origin/main 的 site/（雲端合併的外觀改動自動上線；本機 site/ 未推的改動不會發佈）；fetch 失敗退回本機 site/。
 #   安全：只同步不在本機執行的 site/；bin/ 等會在本機執行的程式碼一律由使用者看過 diff 後手動 git pull。
-# 歷史 data/history.jsonl 只留 14 天。資料沒變（同一個 generated_at 分鐘內）也會照推，失敗不重試（下一輪再推）。
+# 歷史 data/history.jsonl 只留 14 天；每列 t, mode, route, hub, override, card, ct, xt, cr, xr, c5, c7, cs, x5, x7, xs（ct／xt＝7d 等級 rich|ok|lean|tight，cr／xr＝週 reset epoch；override 以後各欄自 2026-10-15 起，舊列沒有）。資料沒變（同一個 generated_at 分鐘內）也會照推，失敗不重試（下一輪再推）。
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; P="$ROOT/.pages"; DRY=0
 case "${1:-}" in
@@ -28,6 +28,9 @@ import json, sys, time
 f, snap = sys.argv[1], json.loads(sys.argv[2])
 g = lambda o, *k: (o := o) and [o := (o or {}).get(x) for x in k][-1]
 row = {"t": snap["generated_at"], "mode": int(snap["mode"].get("mode", 0)), "route": snap["mode"].get("route"), "hub": snap["mode"].get("hub"),
+       "override": snap["mode"].get("override"), "card": snap["mode"].get("card"),
+       "ct": snap["mode"].get("claude"), "xt": snap["mode"].get("codex"),
+       "cr": g(snap, "claude", "week", "resets_at"), "xr": g(snap, "codex", "week", "resets_at"),
        "c5": g(snap, "claude", "five", "used"), "c7": g(snap, "claude", "week", "used"), "cs": g(snap, "claude", "surplus"),
        "x5": g(snap, "codex", "five", "used"), "x7": g(snap, "codex", "week", "used"), "xs": g(snap, "codex", "surplus")}
 try: rows = [json.loads(l) for l in open(f) if l.strip()]
