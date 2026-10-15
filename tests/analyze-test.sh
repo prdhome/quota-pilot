@@ -8,9 +8,9 @@ pass=0; fail=0
 eq() { local name="$1" want="$2" got="$3"
   if [[ $got == "$want" ]]; then pass=$((pass+1)); echo "  ✅ $name"; else fail=$((fail+1)); echo "  ❌ $name (want '$want' got '$got')"; fi; }
 has() { local name="$1" needle="$2" hay="$3"   # 報告裡要有這段字
-  if [[ $hay == *"$needle"* ]]; then pass=$((pass+1)); echo "  ✅ $name"; else fail=$((fail+1)); echo "  ❌ $name（報告裡沒有 '$needle'）"; fi; }
+  if [[ $hay == *"$needle"* ]]; then pass=$((pass+1)); echo "  ✅ $name"; else fail=$((fail+1)); echo "  ❌ ${name}（報告裡沒有 '$needle'）"; fi; }
 hasnt() { local name="$1" needle="$2" hay="$3"
-  if [[ $hay != *"$needle"* ]]; then pass=$((pass+1)); echo "  ✅ $name"; else fail=$((fail+1)); echo "  ❌ $name（報告不該有 '$needle'）"; fi; }
+  if [[ $hay != *"$needle"* ]]; then pass=$((pass+1)); echo "  ✅ $name"; else fail=$((fail+1)); echo "  ❌ ${name}（報告不該有 '$needle'）"; fi; }
 j() { python3 -I "$A" --json "$H/$1.jsonl" | python3 -I -c "import json,sys; s=json.load(sys.stdin); print($2)"; }   # j <情境> <python 運算式，s=統計>
 md() { python3 -I "$A" "$H/$1.jsonl"; }
 sugg='" ".join(x["threshold"] + x["direction"] for x in s["suggestions"])'
@@ -20,7 +20,7 @@ python3 -I "$H/gen.py" "$T/gen" && eq "fixtures/history 與 gen.py 輸出一致"
 
 # --- 門檻從 bin/ 預設值解析 ---
 eq "解析到 12 個校準門檻＋CLAUDE_DEFICIT" "15 15 10 15 50 15 15 25 10 30 20 10 15" \
-  "$(j short '" ".join(f"{s["thresholds"][k]:g}" for k in ("DEFICIT","LEFT_MIN","HYST","SURPLUS_MIN","RAMP","LEFT_TIGHT","CODEX_RICH","CODEX_DEFICIT","BLOCK_5H","LOW_5H","WEEKEND","CARD_USE_LEFT","CLAUDE_DEFICIT"))')"
+  "$(j short '" ".join("%g" % s["thresholds"][k] for k in ("DEFICIT","LEFT_MIN","HYST","SURPLUS_MIN","RAMP","LEFT_TIGHT","CODEX_RICH","CODEX_DEFICIT","BLOCK_5H","LOW_5H","WEEKEND","CARD_USE_LEFT","CLAUDE_DEFICIT"))')"
 
 echo "穩定充裕一週"
 eq "7 天、337 列、不標樣本不足" "7.0 337 False" "$(j stable-rich 's["days"], s["rows"], s["insufficient"]')"
