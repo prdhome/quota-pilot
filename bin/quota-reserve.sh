@@ -5,6 +5,7 @@
 #   add <claude|codex> <ISO8601> 新增一張卷（例 2026-11-14T02:00:00+08:00）
 #   check                        比對已用卷的 reset 前後：週 reset 時間有變 → 用卷會重開週期
 # 重置卷沒有 API，用卷後要手動 `use`；`QUOTA_RESERVES` 可改檔案路徑（測試用）。
+# 測試用：`QP_STATE` 改讀 Claude rate_limits.json 路徑；`QP_CODEX_TSV="<5h> <7d> <5h_reset> <7d_reset>"` 注入 Codex 讀數（`-` = 讀不到）。未設時行為不變。
 F="${QUOTA_RESERVES:-$HOME/.claude/state/quota-reserves.json}"
 cmd="${1:-list}"; shift || true
 python3 -I - "$F" "$cmd" "$@" <<'PY'
@@ -16,7 +17,8 @@ now = time.time()
 ts = lambda s: datetime.fromisoformat(s).timestamp()
 def week_reset(p):
     try:
-        if p == "claude": return float(json.load(open(os.path.expanduser("~/.claude/state/rate_limits.json")))["seven_day_resets_at"])
+        if p == "claude": return float(json.load(open(os.environ.get("QP_STATE") or os.path.expanduser("~/.claude/state/rate_limits.json")))["seven_day_resets_at"])
+        if os.environ.get("QP_CODEX_TSV"): return float(os.environ["QP_CODEX_TSV"].split()[3])
         return float(json.load(open(os.path.expanduser("~/.claude/state/codex_limits.json")))["row"][3])
     except Exception: return None
 def save(): json.dump(d, open(f, "w"), ensure_ascii=False, indent=2)

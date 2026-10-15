@@ -25,6 +25,8 @@ jobs:
         run: bash tests/policy-test.sh
       - name: Snapshot tests
         run: bash tests/snapshot-test.sh
+      - name: Analyze tests
+        run: bash tests/analyze-test.sh
 
   web:
     name: Dashboard smoke test
