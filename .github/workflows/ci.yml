@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rules:
+    name: Policy + snapshot tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Policy tests
+        run: bash tests/policy-test.sh
+      - name: Snapshot tests
+        run: bash tests/snapshot-test.sh
+
+  web:
+    name: Dashboard smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/web/package-lock.json
+      - name: Install Playwright
+        run: |
+          npm ci --prefix tests/web --no-audit --no-fund
+          npx --prefix tests/web playwright install --with-deps chromium
+      - name: Web smoke test
+        run: bash tests/web-smoke.sh

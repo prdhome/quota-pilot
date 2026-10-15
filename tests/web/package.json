@@ -1,0 +1,9 @@
+{
+  "name": "quota-pilot-web-smoke",
+  "private": true,
+  "description": "site/index.html 冒煙測試（tests/web-smoke.sh 會呼叫）",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.56.1"
+  }
+}

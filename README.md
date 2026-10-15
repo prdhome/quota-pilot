@@ -26,3 +26,19 @@ bin/quota-mode.sh --explain   # 看目前判定與依據
 bin/publish.sh --init         # 首次建立 gh-pages
 bin/install-launchd.sh        # 安裝每 30 分鐘推送
 ```
+
+## 測試與本機預覽
+`tests/fixtures/` 是共用的假情境（充裕、Claude 7d 吃緊、Codex 吃緊、5h 覆寫、有重置卷、資料過期）；時間欄位是相對「現在」的秒數，由 `tests/lib/fixture.py` 換算，不會過期。全部不碰真實額度。
+
+```bash
+bash tests/policy-test.sh     # 規則回歸測試（pick-model／quota-mode）
+bash tests/snapshot-test.sh   # 每組情境跑 bin/snapshot.sh，檢查 JSON 結構與模式判定
+bash tests/web-smoke.sh       # 儀表板冒煙測試（Playwright＋Chromium，桌機／手機寬度）
+bin/preview.sh                # 列出情境
+bin/preview.sh override-5h    # 用該情境的假資料開預覽 http://127.0.0.1:8765/（可加 port）
+```
+
+- `web-smoke.sh` 需要 node；第一次跑會自動在 `tests/web/` 安裝 playwright，沒有瀏覽器時先跑 `npx --prefix tests/web playwright install chromium`。
+- `snapshot.sh` 測試用 `QP_CODEX_TSV` 注入 Codex 讀數（CI 沒有 codex CLI；設成 `-` = 讀不到）；未設時照舊呼叫 `codex-quota.sh --cached`。
+- 新增情境：在 `tests/fixtures/` 加一個 JSON（照現有格式，`expect.mode` 寫預期判定），三個測試與預覽都會自動納入。
+- GitHub Actions（`.github/workflows/ci.yml`）在 push 到 main 與每個 PR 跑上面三個測試。

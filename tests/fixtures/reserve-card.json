@@ -1,0 +1,13 @@
+{
+ "description": "Claude 7d 吃緊但有 1 張未用重置卷 → 視同 ok、主控維持 Opus、提示用卷；另有一張已用的 Codex 卷與雲端點數",
+ "claude": {"five_used": 10, "five_reset_in": 3600, "week_used": 95, "week_reset_in": 127008, "updated_ago": 0},
+ "codex": {"five_used": 10, "week_used": 70, "five_reset_in": 3600, "week_reset_in": 127008},
+ "reserves": {
+  "cards": [
+   {"provider": "claude", "expires_in": 604800, "used_at": null},
+   {"provider": "codex", "expires_in": 1209600, "used_at": "2026-10-01T00:00:00+08:00"}
+  ],
+  "credits": [{"provider": "claude", "usd_left": 12.5, "usd_total": 50, "expires_in": 2592000, "note": "fixture"}]
+ },
+ "expect": {"mode": {"mode": "6", "hub": "opus", "route": "cost", "subagent": "opus", "claude": "ok", "codex": "ok", "override": "-", "card": "claude:use"}}
+}

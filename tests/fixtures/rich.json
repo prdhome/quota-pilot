@@ -1,0 +1,7 @@
+{
+ "description": "兩邊都充裕：週期過 79%，兩邊週只用 43% → M1 派工",
+ "claude": {"five_used": 10, "five_reset_in": 3600, "week_used": 43, "week_reset_in": 127008, "updated_ago": 0},
+ "codex": {"five_used": 10, "week_used": 43, "five_reset_in": 3600, "week_reset_in": 127008},
+ "reserves": {"cards": [], "credits": []},
+ "expect": {"mode": {"mode": "1", "hub": "opus", "route": "delegate", "subagent": "opus", "claude": "rich", "codex": "rich", "override": "-", "card": "-"}}
+}
