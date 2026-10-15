@@ -16,7 +16,7 @@ esac
 [ -d "$P" ] || { echo "先跑 publish.sh --init" >&2; exit 1; }
 mkdir -p "$P/data"
 if git -C "$ROOT" fetch -q origin main 2>/dev/null; then
-  git -C "$ROOT" archive origin/main site | tar -x -C "$P" --strip-components=1 || exit 1
+  git -C "$ROOT" archive origin/main -- site ':(exclude)site/data' | tar -x -C "$P" --strip-components=1 || exit 1
 else
   cp -R "$ROOT/site/." "$P/"
 fi
