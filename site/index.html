@@ -233,9 +233,11 @@ const ACTION = {
   card: {
     use: k => `建議現在使用 ${k.name} 重置卷（週額度快用完）：最近一張 ${k.date} 到期、剩 ${k.left}。用完記得跑 quota-reserve.sh use ${k.p}。`,
     expiring: k => `建議使用 ${k.name} 重置卷（${k.date} 到期、剩 ${k.left}，不用就浪費）。用完記得跑 quota-reserve.sh use ${k.p}。`,
-    soon: k => `提醒：${k.name} 重置卷 ${k.date} 到期（剩 ${k.left}），還不急著用；週額度用過半時可以考慮先用掉。`,
+    // 用卷會把週用量歸零：週還剩很多時用掉＝浪費，所以只在週剩 ≤ cardUseLeft% 時用（同 bin/quota-mode.sh CARD_USE_LEFT），到期前一天還沒用到就直接用
+    soon: k => `提醒：${k.name} 重置卷 ${k.date} 到期（剩 ${k.left}），還不急著用；週額度剩 ${ACTION.cardUseLeft}% 以下時再用，到期前一天仍沒用到就直接用掉。`,
   },
   soonDays: 3,                 // 卷剩幾天內給溫和提醒
+  cardUseLeft: 10,             // 週剩幾 % 以下才建議用卷（顯示用，須與 bin/quota-mode.sh CARD_USE_LEFT 一致）
   staleMin: 90,                // 超過幾分鐘標為過期
   degradeHours: 6,             // 超過幾小時把行動卡降級
   stale: m => `已 ${m} 沒更新：Mac 可能關機、睡眠或推送失敗，以下是最後一次的狀態。`,

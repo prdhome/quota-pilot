@@ -66,6 +66,7 @@ for (const name of names) {
     check(`${t}：行動卡在最上方、有標題與 1–3 句建議`, r.actionTop < 200 && r.headline.length > 4 && r.todo.length >= 1 && r.todo.length <= 3, JSON.stringify({ top: r.actionTop, headline: r.headline, todo: r.todo }));
     const miss = (sc.expect.action || []).filter(s => !r.action.includes(s));
     check(`${t}：行動卡文案含 ${JSON.stringify(sc.expect.action || [])}`, sc.expect.action && miss.length === 0, `缺 ${JSON.stringify(miss)}；行動卡：${r.action.replace(/\n/g, ' / ')}`);
+    check(`${t}：用卷文案不鼓勵週額度還多時就用卷`, !r.todo.some(s => s.includes('重置卷') && s.includes('過半')), JSON.stringify(r.todo));
     if (want.override !== '-') check(`${t}：5h 覆寫文案`, r.todo.some(s => s.includes('5h') && s.includes('恢復')), JSON.stringify(r.todo));
     if (want.card !== '-') check(`${t}：用卷建議含到期日與剩幾天`, r.todo.some(s => s.includes('重置卷') && /\d+\/\d+ 到期/.test(s) && /剩 \d+ (天|小時)/.test(s)), JSON.stringify(r.todo));
     check(`${t}：新鮮度「x 前更新」${stale ? '標過期＋原因' : ''}`, /前更新/.test(r.fresh) && stale === r.fresh.includes('stale') && stale === r.whyFresh && stale === r.stamp.includes('stale'), JSON.stringify({ fresh: r.fresh, whyFresh: r.whyFresh, stamp: r.stamp }));
