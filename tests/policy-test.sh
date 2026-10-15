@@ -52,8 +52,11 @@ tight ok mode=10 hub=sonnet route=delegate subagent=sonnet ov=-
 tight lean mode=11 hub=sonnet route=hold subagent=sonnet ov=-
 tight tight mode=12 hub=sonnet route=hold subagent=sonnet ov=-
 M
-cst rich; eq "codex 讀不到 → unknown，矩陣當 ok" "mode=2 hub=opus route=cost subagent=opus claude=rich codex=unknown override=- card=-" \
+cst rich; eq "codex 讀不到 → unknown，矩陣當 lean（不推給 Codex）" "mode=3 hub=opus route=direct subagent=opus claude=rich codex=unknown override=- card=-" \
   "$("$ROOT/bin/quota-mode.sh" --state "$T/s.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv x)"
+cst tight; eq "Claude 吃緊＋codex unknown → hold（不盲目派工）" "mode=11 hub=sonnet route=hold subagent=sonnet ov=-" "$(qm x)"
+st 80 $((NOW+3600)) 43 $W $NOW
+eq "Claude 5h 偏低＋codex unknown → 不轉派工" "mode=3 hub=opus route=direct subagent=opus ov=-" "$(qm x)"
 st 95 $((NOW+3600)) 43 $W $NOW
 eq "Claude 5h 剩 5 → 暫停 Claude、派工（7d 仍 rich）" "mode=2 hub=opus route=delegate subagent=opus ov=claude5h" "$(qm "$(xt ok)")"
 eq "Claude 5h 剩 5、Codex 吃緊 → hold" "mode=4 hub=opus route=hold subagent=opus ov=claude5h" "$(qm "$(xt tight)")"
