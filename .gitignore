@@ -1,3 +1,4 @@
 .pages/
 .pages-publish.log
 tests/web/node_modules/
+tests/screenshots/

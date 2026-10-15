@@ -3,5 +3,6 @@
  "claude": {"five_used": 95, "five_reset_in": 3600, "week_used": 43, "week_reset_in": 127008, "updated_ago": 0},
  "codex": {"five_used": 10, "week_used": 70, "five_reset_in": 3600, "week_reset_in": 127008},
  "reserves": {"cards": [], "credits": []},
- "expect": {"mode": {"mode": "2", "hub": "opus", "route": "delegate", "subagent": "opus", "claude": "rich", "codex": "ok", "override": "claude5h", "card": "-"}}
+ "expect": {"mode": {"mode": "2", "hub": "opus", "route": "delegate", "subagent": "opus", "claude": "rich", "codex": "ok", "override": "claude5h", "card": "-"},
+            "action": ["Claude 5h", "恢復"]}
 }

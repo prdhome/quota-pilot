@@ -1,0 +1,9 @@
+{
+ "description": "數據嚴重過期：儀表板 snapshot 已 8h 未更新 → 行動卡降級成「僅供參考」",
+ "claude": {"five_used": 10, "five_reset_in": 3600, "week_used": 87, "week_reset_in": 127008, "updated_ago": 25200},
+ "codex": {"five_used": 10, "week_used": 70, "five_reset_in": 3600, "week_reset_in": 127008},
+ "reserves": {"cards": [], "credits": []},
+ "snapshot_age": 28800,
+ "expect": {"mode": {"mode": "6", "hub": "opus", "route": "cost", "subagent": "opus", "claude": "ok", "codex": "ok", "override": "-", "card": "-"}, "explain_contains": "stale",
+            "action": ["僅供參考", "Mac"]}
+}
