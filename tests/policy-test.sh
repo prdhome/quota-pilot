@@ -91,4 +91,27 @@ eq "pick-model：Claude 7d 吃緊＋卷 → opus" opus "$(pm)"
 eq "Claude 7d 吃緊＋卷 → 視同 ok、主控維持 opus、提示用卷" "mode=6 hub=opus route=cost subagent=opus ov=- card=claude:use" "$(qm "$(xt ok)")"
 unset RESV
 
+# --- quota-reserve.sh check／use：QP_STATE（Claude）、QP_CODEX_TSV（Codex）注入目前週 reset ---
+RESV="$T/rv.json"; mkdir -p "$T/home"
+qr() { HOME="$T/home" QUOTA_RESERVES="$RESV" "$ROOT/bin/quota-reserve.sh" "$@"; }
+R7=$((NOW+DAY*3))
+printf '{"cards":[{"provider":"claude","expires":"2099-01-01T00:00:00+00:00","used_at":"2026-10-10T00:00:00+08:00","reset7_before":%s},{"provider":"codex","expires":"2099-01-01T00:00:00+00:00","used_at":"2026-10-10T00:00:00+08:00","reset7_before":%s}],"credits":[]}' $R7 $R7 > "$RESV"
+st 10 $((NOW+3600)) 40 $((R7+300)) $NOW
+eq "check：Claude 週 reset 只差 5 分鐘 → 未重開週期" 1 "$(QP_STATE="$T/s.json" qr check | grep -c '^claude.*未變')"
+st 10 $((NOW+3600)) 0 $((R7+DAY*4)) $NOW
+eq "check：Claude 週 reset 往後跳 → 用卷重開週期" 1 "$(QP_STATE="$T/s.json" qr check | grep -c '^claude.*已改變')"
+eq "check：Codex 週 reset 相同 → 未重開週期" 1 "$(QP_CODEX_TSV="0 0 $((NOW+3600)) $R7" qr check | grep -c '^codex.*未變')"
+eq "check：Codex 週 reset 往後跳 → 用卷重開週期" 1 "$(QP_CODEX_TSV="0 0 $((NOW+3600)) $((R7+DAY*5))" qr check | grep -c '^codex.*已改變')"
+eq "check：讀不到 Codex（QP_CODEX_TSV=-）" 1 "$(QP_CODEX_TSV=- qr check | grep -c '^codex：讀不到目前週 reset')"
+eq "check：讀不到 Claude（QP_STATE 指向不存在的檔）" 1 "$(QP_STATE="$T/nope.json" qr check | grep -c '^claude：讀不到目前週 reset')"
+printf '{"cards":[{"provider":"claude","expires":"2099-01-01T00:00:00+00:00","used_at":null}],"credits":[]}' > "$RESV"
+QP_STATE="$T/s.json" qr use claude >/dev/null
+eq "use：記下 QP_STATE 的週 reset 當 reset7_before" "$((R7+DAY*4))" "$(python3 -c 'import json,sys; print(int(json.load(open(sys.argv[1]))["cards"][0]["reset7_before"]))' "$RESV")"
+unset RESV
+
+# --- 門檻同步：網頁 ACTION.cardUseLeft ＝ quota-mode.sh CARD_USE_LEFT 預設值 ---
+want=$(sed -nE 's/^CARD_USE_LEFT="\$\{CARD_USE_LEFT:-([0-9.]+)\}"$/\1/p' "$ROOT/bin/quota-mode.sh")
+got=$(sed -nE 's/^ *cardUseLeft: *([0-9.]+),.*/\1/p' "$ROOT/site/index.html")
+eq "門檻同步：site ACTION.cardUseLeft ＝ quota-mode.sh CARD_USE_LEFT（$want）" "${want:-缺}" "${got:-缺}"
+
 echo "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

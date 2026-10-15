@@ -42,6 +42,7 @@ bin/install-launchd.sh        # 安裝每 30 分鐘推送
 ```bash
 bash tests/policy-test.sh     # 規則回歸測試（pick-model／quota-mode）
 bash tests/snapshot-test.sh   # 每組情境跑 bin/snapshot.sh，檢查 JSON 結構與模式判定
+bash tests/analyze-test.sh    # bin/analyze.py 校準報告（tests/fixtures/history/ 假歷史）
 bash tests/web-smoke.sh       # 儀表板冒煙測試（Playwright＋Chromium，桌機／手機 375px；行動卡文案、三種錯誤狀態）
 SHOTS=/tmp/shots bash tests/web-smoke.sh   # 同上，另存每組情境的截圖
 bin/preview.sh                # 列出情境
@@ -51,4 +52,32 @@ bin/preview.sh override-5h    # 用該情境的假資料開預覽 http://127.0.0
 - `web-smoke.sh` 需要 node；第一次跑會自動在 `tests/web/` 安裝 playwright，沒有瀏覽器時先跑 `npx --prefix tests/web playwright install chromium`。
 - `snapshot.sh` 測試用 `QP_CODEX_TSV` 注入 Codex 讀數（CI 沒有 codex CLI；設成 `-` = 讀不到）；未設時照舊呼叫 `codex-quota.sh --cached`。
 - 新增情境：在 `tests/fixtures/` 加一個 JSON（照現有格式，`expect.mode` 寫預期判定、`expect.action` 寫行動卡必須出現的字），三個測試與預覽都會自動納入。
-- GitHub Actions（`.github/workflows/ci.yml`）在 push 到 main 與每個 PR 跑上面三個測試。
+- GitHub Actions（`.github/workflows/ci.yml`）在 push 到 main 與每個 PR 跑上面四個測試。
+
+## 校準流程
+歷史累積滿 7 天（最好跨過一次週期自然結束）後，用真實數據看門檻要不要調：
+
+```bash
+git fetch origin gh-pages                      # analyze.py 不連網，只讀本地 git 物件
+python3 bin/analyze.py --gh-pages              # 報告印到 stdout
+python3 bin/analyze.py --gh-pages -o /tmp/calib.md
+python3 bin/analyze.py path/to/history.jsonl   # 讀任意檔案（例如本機 .pages/data/history.jsonl）
+```
+
+報告怎麼看：
+- **樣本不足**：資料不到 3 天時開頭會標「樣本不足，僅供參考」，建議只當方向。
+- **時間占比／模式切換**：某模式占比異常高，或單日切換很多、出現 3 小時內 A→B→A 的來回跳動，代表常卡在門檻邊緣。
+- **週期結束時剩多少**：只算自然結束的週期。剩 ≥20% 標「浪費」，≤3% 標「見底」。最後讀數離結束超過 6 小時會加註，因為實際剩量可能更少。
+- **非排程 reset**：
+  - 「週期重開」：週期已過% 突然倒退，而且發生在原排程 reset 之前（週 reset 時間往後跳）。OpenAI 主動重置 Codex、或用卷重開週期，都會長這樣。
+  - 「只歸零用量」：週期沒變，但週已用驟降 ≥10 點（用卷只歸零用量時）。
+  - 兩種都不算「週期結束剩很多」，另列次數與時間點。可以跟 `quota-reserve.sh check` 對照，判斷是不是自己用了卷。
+- **門檻附近（±5）**：週盈餘有很長時間落在某條邊界附近，那個門檻就是最敏感的旋鈕。
+- **5h／override／card**：5h 衝到 70／90% 的次數與時段、各 override 與用卷建議出現的次數。2026-10-15 前的舊列沒有 override／card 欄位，會略過。
+- **建議**：只列門檻名稱、現值、調整方向與理由，不會改任何值。現值是直接從 `bin/pick-model.sh`、`bin/quota-mode.sh` 的預設值宣告行讀出來的。
+
+要改門檻時，下面幾處要一起改：
+- `bin/pick-model.sh`（DEFICIT／LEFT_MIN／HYST／SURPLUS_MIN／RAMP）與 `bin/quota-mode.sh`（LEFT_TIGHT、CODEX_*、BLOCK_5H、LOW_5H、WEEKEND、CARD_USE_LEFT 等）。只改預設值，不要改宣告行的格式，因為測試與另一個 repo 都會解析這幾行。
+- orchestrator repo 的 `mods/quota-monitor/hooks/lib.ts`：DEFICIT／LEFT_MIN／HYST 要同值（那邊的 `tests/quota-policy-test.sh` 會檢查）。
+- `site/index.html` 的 `ACTION.cardUseLeft` 要等於 CARD_USE_LEFT（`tests/policy-test.sh` 會檢查）；`ACTION.soonDays` 是網頁自己的提醒門檻。
+- 改完跑全部測試。`tests/policy-test.sh` 的矩陣期望值是照現行門檻寫的，門檻改了，測試資料也要跟著重新設計。
