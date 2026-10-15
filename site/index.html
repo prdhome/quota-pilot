@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quota Pilot</title>
+<meta name="description" content="Claude Code + Codex 額度動態調度：目前模式、主控模型與派工建議">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='none' stroke='%232a78d6' stroke-width='4'/><path d='M16 16 L16 6' stroke='%23eb6834' stroke-width='4' stroke-linecap='round'/></svg>">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --claude: #eb6834; --codex: #2a78d6;
+  --good: #0ca30c; --good-text: #006300; --warning: #fab219; --critical: #d03b3b;
+  --accent-bg: #eaf2fc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --claude: #d95926; --codex: #3987e5; --good-text: #0ca30c;
+    --accent-bg: #16263b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --claude: #d95926; --codex: #3987e5; --good-text: #0ca30c;
+  --accent-bg: #16263b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Noto Sans TC", sans-serif; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+h1 span { color: var(--muted); font-weight: 500; }
+.stamp { font-size: 13px; color: var(--ink-2); }
+.stamp.stale { color: var(--critical); font-weight: 600; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 14px; padding: 18px; }
+.grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.grid > * { min-width: 0; }
+.scroll-x { overflow-x: auto; }
+h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+/* hero */
+.hero { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+.mode-badge { width: 92px; height: 92px; border-radius: 22px; background: var(--accent-bg); display: grid; place-items: center; text-align: center; }
+.mode-badge b { font-size: 40px; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.mode-badge small { display: block; font-size: 11px; color: var(--ink-2); margin-top: 2px; letter-spacing: 0.08em; }
+.route { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+.route-desc { color: var(--ink-2); margin: 4px 0 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink); border: 1px solid var(--ring); }
+.chip i { font-style: normal; color: var(--muted); margin-right: 4px; }
+.alert { margin-top: 14px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--ring); background: var(--surface-2); font-size: 14px; display: flex; gap: 8px; align-items: flex-start; }
+.alert .ico { font-weight: 700; }
+.alert.warn .ico { color: var(--warning); }
+.alert.crit .ico { color: var(--critical); }
+/* meters */
+.providers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.prov-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.prov-name { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.tier { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--ring); color: var(--ink-2); }
+.meter { margin: 10px 0 14px; }
+.meter-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.meter-top b { color: var(--ink); font-size: 18px; font-variant-numeric: tabular-nums; }
+.track { position: relative; height: 10px; background: var(--surface-2); border-radius: 999px; box-shadow: inset 0 0 0 1px var(--ring); }
+.fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+.pace { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); border-radius: 1px; }
+.surplus { font-size: 13px; color: var(--ink-2); }
+.surplus b { font-variant-numeric: tabular-nums; color: var(--ink); }
+/* matrix */
+.lower { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.matrix { display: grid; grid-template-columns: 56px repeat(4, minmax(0, 1fr)); gap: 4px; font-size: 12px; }
+.matrix .h { color: var(--muted); display: grid; place-items: center; padding: 4px 0; text-align: center; }
+.matrix .rh { justify-items: start; padding-left: 2px; }
+.cell { background: var(--surface-2); border-radius: 8px; padding: 8px 6px; text-align: center; min-height: 52px; border: 1px solid transparent; }
+.cell b { display: block; font-size: 13px; color: var(--ink-2); }
+.cell span { color: var(--muted); }
+.cell.on { background: var(--accent-bg); border-color: var(--codex); }
+.cell.on b, .cell.on span { color: var(--ink); }
+.axis-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+/* reserves */
+.res-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--grid); font-size: 14px; }
+.res-row:first-of-type { border-top: 0; }
+.res-row .when { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.res-row .left { font-weight: 600; font-variant-numeric: tabular-nums; }
+.res-row .left.soon { color: var(--critical); }
+.res-row.used { opacity: 0.45; }
+.tag { font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+/* trend */
+.legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: 240px; overflow: visible; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 6px 9px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); white-space: nowrap; display: none; }
+.tip b { font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+details table { width: 100%; border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+details th, details td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--grid); }
+details th:first-child, details td:first-child { text-align: left; }
+.why { font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink-2); white-space: pre-wrap; margin: 8px 0 0; }
+.empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
+footer { margin-top: 20px; font-size: 12px; color: var(--muted); text-align: center; }
+footer a { color: inherit; }
+@media (max-width: 760px) {
+  .providers, .lower { grid-template-columns: minmax(0, 1fr); }
+  .hero { grid-template-columns: 1fr; }
+  .mode-badge { width: 76px; height: 76px; border-radius: 18px; }
+  .mode-badge b { font-size: 32px; }
+  .route { font-size: 24px; }
+  .matrix { grid-template-columns: 40px repeat(4, minmax(0, 1fr)); font-size: 11px; }
+  .cell { padding: 6px 2px; min-height: 46px; }
+  .cell b { font-size: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Quota Pilot <span>· Claude Code ＋ Codex</span></h1>
+    <div class="stamp" id="stamp">載入中…</div>
+  </header>
+
+  <div class="grid">
+    <section class="card" aria-labelledby="h-now">
+      <h2 id="h-now">現在怎麼用</h2>
+      <div class="hero">
+        <div class="mode-badge"><div><b id="mode-n">–</b><small>MODE</small></div></div>
+        <div>
+          <p class="route" id="route">–</p>
+          <p class="route-desc" id="route-desc"></p>
+          <div class="chips" id="chips"></div>
+        </div>
+      </div>
+      <div id="alerts"></div>
+    </section>
+
+    <div class="grid providers" id="providers"></div>
+
+    <div class="grid lower">
+      <section class="card" aria-labelledby="h-matrix">
+        <h2 id="h-matrix">7d 模式矩陣</h2>
+        <div class="matrix" id="matrix"></div>
+        <p class="axis-note">列：Claude 7d 等級；欄：Codex 7d 等級（已含重置卷）。5h 只做暫時覆寫。</p>
+        <details><summary>判斷依據</summary><pre class="why" id="why"></pre></details>
+      </section>
+      <section class="card" aria-labelledby="h-res">
+        <h2 id="h-res">重置卷與點數</h2>
+        <div id="reserves"></div>
+      </section>
+    </div>
+
+    <section class="card" aria-labelledby="h-trend">
+      <h2 id="h-trend">7 天週盈餘趨勢（週期已過% − 週已用%）</h2>
+      <div class="legend"><span><i style="background:var(--claude)"></i>Claude</span><span><i style="background:var(--codex)"></i>Codex</span></div>
+      <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+      <details><summary>表格檢視</summary><div id="table" class="scroll-x"></div></details>
+    </section>
+  </div>
+  <footer>正值＝用得比週期慢（額度會剩）；負值＝超速。資料由本機每 30 分鐘推送 · <a href="https://github.com/prdhome/quota-pilot">source</a></footer>
+</div>
+
+<script>
+const ROUTE = {
+  delegate: ['傾向派工', '邊界任務外包給 Codex，本體只做規劃與驗收。'],
+  cost: ['照成本判準', '直做與派工各估 Claude 端 token，便宜的那邊做。'],
+  direct: ['傾向直做', '邊界任務由本體直接做，保留 Codex 額度。'],
+  'no-codex': ['不派 Codex', 'Codex 額度吃緊：划算的直做，太大的等 reset。'],
+  'small-only': ['只做小任務', '兩邊都不寬裕：小任務直做，大任務等 reset。'],
+  hold: ['非急件延後', '額度見底：只處理急件，其餘排到 reset 之後。'],
+};
+const TIER = { rich: '充裕', ok: '正常', lean: '超速', tight: '吃緊', unknown: '未知' };
+const OVERRIDE = {
+  claude5h: 'Claude 5h 快見底，暫停本體工作', codex5h: 'Codex 5h 快見底，暫停派工', both5h: '兩邊 5h 都快見底',
+  'claude5h-low': 'Claude 5h 偏低，新任務暫轉 Codex', 'codex5h-low': 'Codex 5h 偏低，新任務暫轉本體',
+  'weekend-claude': 'Claude 週額度快重置且有剩，放寬使用', 'weekend-codex': 'Codex 週額度快重置且有剩，多派工', 'weekend-both': '兩邊都快重置且有剩',
+};
+const MATRIX = [[1, 'delegate', 2, 'cost', 3, 'direct', 4, 'no-codex'], [5, 'delegate', 6, 'cost', 7, 'cost', 8, 'small-only'], [9, 'delegate', 10, 'delegate', 11, 'hold', 12, 'hold']];
+const $ = id => document.getElementById(id);
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) k === 'class' ? e.className = v : k === 'style' ? e.style.cssText = v : e.setAttribute(k, v); e.append(...kids.filter(k => k != null)); return e; };
+const fmtLeft = sec => { if (sec == null) return '?'; if (sec <= 0) return '已到'; const m = Math.round(sec / 60), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60); return d ? `${d}天${h}時` : h ? `${h}時${m % 60}分` : `${m}分`; };
+const nowS = () => Date.now() / 1000;
+let snap = null, hist = [];
+
+function render() {
+  if (!snap) return;
+  const m = snap.mode, age = nowS() - snap.generated_at;
+  $('stamp').textContent = `更新於 ${new Date(snap.generated_at * 1000).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}（${fmtLeft(age)}前）`;
+  $('stamp').className = 'stamp' + (age > 5400 ? ' stale' : '');
+  const [label, desc] = ROUTE[m.route] || [m.route, ''];
+  $('mode-n').textContent = 'M' + m.mode;
+  $('route').textContent = label;
+  $('route-desc').textContent = desc;
+  $('chips').replaceChildren(
+    el('span', { class: 'chip' }, el('i', {}, '主控'), m.hub === 'opus' ? 'Opus 5.5' : 'Sonnet 5.5'),
+    el('span', { class: 'chip' }, el('i', {}, 'subagent'), m.subagent === 'opus' ? 'Opus' : 'Sonnet'),
+    el('span', { class: 'chip' }, el('i', {}, 'Claude'), TIER[m.claude] || m.claude),
+    el('span', { class: 'chip' }, el('i', {}, 'Codex'), TIER[m.codex] || m.codex));
+  const alerts = [];
+  if (age > 5400) alerts.push(['crit', '!', `資料已 ${fmtLeft(age)} 未更新（Mac 可能關機或推送失敗），以下為最後狀態。`]);
+  if (m.override && m.override !== '-') alerts.push([m.route === 'hold' ? 'crit' : 'warn', '▲', '暫時覆寫：' + (OVERRIDE[m.override] || m.override)]);
+  for (const c of (m.card && m.card !== '-' ? m.card.split(',') : [])) {
+    const [p, why] = c.split(':');
+    alerts.push(['warn', '◆', `建議使用 ${p === 'claude' ? 'Claude' : 'Codex'} 重置卷（${why === 'use' ? '週額度快用完' : '卷快到期'}）——用完記得跑 quota-reserve.sh use ${p}`]);
+  }
+  $('alerts').replaceChildren(...alerts.map(([k, ico, t]) => el('div', { class: 'alert ' + k, role: 'status' }, el('span', { class: 'ico', 'aria-hidden': 'true' }, ico), el('span', {}, t))));
+
+  const prov = (key, name, color) => {
+    const d = snap[key];
+    const card = el('section', { class: 'card', 'aria-label': name });
+    card.append(el('div', { class: 'prov-head' }, el('div', { class: 'prov-name' }, el('span', { class: 'dot', style: `background:${color}` }), name), el('span', { class: 'tier' }, '7d ' + (TIER[m[key]] || '–'))));
+    if (!d) { card.append(el('p', { class: 'empty' }, '讀不到資料')); return card; }
+    const meter = (label, w, pace) => {
+      const used = w.resets_at && w.resets_at <= nowS() ? 0 : w.used;
+      const track = el('div', { class: 'track', role: 'meter', 'aria-valuenow': used, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-label': `${name} ${label} 已用` },
+        el('div', { class: 'fill', style: `width:${Math.min(100, used)}%;background:${color}` }));
+      if (pace != null) track.append(el('div', { class: 'pace', style: `left:calc(${Math.min(100, Math.max(0, pace))}% - 1px)`, 'data-label': '週期進度' }));
+      return el('div', { class: 'meter' }, el('div', { class: 'meter-top' }, el('span', {}, `${label} · 剩 ${Math.round(100 - used)}%`), el('span', {}, el('b', {}, Math.round(used) + '%'), ' 已用')),
+        track, el('div', { class: 'meter-top', style: 'margin:6px 0 0' }, el('span', {}, `${fmtLeft(w.resets_at - nowS())}後重置`), pace != null ? el('span', {}, `▏週期已過 ${Math.round(pace)}%`) : null));
+    };
+    let pace = null;
+    if (d.week.resets_at) { let r = d.week.resets_at; while (r <= nowS()) r += 604800; pace = 100 * (1 - (r - nowS()) / 604800); }
+    card.append(meter('5 小時', d.five), meter('每週', d.week, pace));
+    if (d.surplus != null) card.append(el('div', { class: 'surplus' }, '週盈餘 ', el('b', {}, (d.surplus >= 0 ? '+' : '') + d.surplus.toFixed(0)), d.surplus >= 0 ? '（用得比週期慢，額度會剩）' : '（超速，照這速度會提前用完）'));
+    return card;
+  };
+  $('providers').replaceChildren(prov('claude', 'Claude Code', 'var(--claude)'), prov('codex', 'Codex', 'var(--codex)'));
+
+  const cols = ['rich', 'ok', 'lean', 'tight'], rows = ['rich', 'ok', 'tight'];
+  const mx = [el('div', { class: 'h', style: 'font-size:10px' }, 'Claude＼Codex')].concat(cols.map(c => el('div', { class: 'h' }, TIER[c])));
+  rows.forEach((r, i) => {
+    mx.push(el('div', { class: 'h rh' }, TIER[r]));
+    for (let j = 0; j < 4; j++) {
+      const [n, rt] = [MATRIX[i][j * 2], MATRIX[i][j * 2 + 1]];
+      mx.push(el('div', { class: 'cell' + (String(n) === String(m.mode) ? ' on' : ''), title: ROUTE[rt][1] }, el('b', {}, 'M' + n), el('span', {}, ROUTE[rt][0])));
+    }
+  });
+  $('matrix').replaceChildren(...mx);
+  $('why').textContent = (snap.explain || []).join('\n');
+
+  const rs = [];
+  for (const c of [...(snap.cards || [])].sort((a, b) => a.expires.localeCompare(b.expires))) {
+    const left = Date.parse(c.expires) / 1000 - nowS();
+    const dead = c.used_at || left <= 0;
+    rs.push(el('div', { class: 'res-row' + (dead ? ' used' : '') },
+      el('span', { class: 'tag' }, el('span', { class: 'dot', style: `background:var(--${c.provider === 'claude' ? 'claude' : 'codex'})` }), c.provider === 'claude' ? 'Claude' : 'Codex'),
+      el('span', { class: 'when' }, '完整重置卷 · ' + new Date(c.expires).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' }) + ' 到期'),
+      el('span', { class: 'left' + (!dead && left < 172800 ? ' soon' : '') }, c.used_at ? '已用' : left <= 0 ? '過期' : '剩 ' + fmtLeft(left))));
+  }
+  for (const c of snap.credits || []) {
+    const left = Date.parse(c.expires) / 1000 - nowS();
+    rs.push(el('div', { class: 'res-row' }, el('span', { class: 'tag' }, el('span', { class: 'dot', style: 'background:var(--claude)' }), '雲端'),
+      el('span', { class: 'when' }, `點數 US$${c.usd_left} / ${c.usd_total} · ${new Date(c.expires).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' })} 到期`),
+      el('span', { class: 'left' }, '剩 ' + fmtLeft(left))));
+  }
+  $('reserves').replaceChildren(...(rs.length ? rs : [el('p', { class: 'empty' }, '沒有登錄的重置卷')]));
+  drawTrend();
+}
+
+function drawTrend() {
+  const box = $('chart'), tip = $('tip');
+  box.querySelector('svg')?.remove();
+  const pts = hist.filter(r => r.t >= nowS() - 7 * 86400);
+  if (pts.length < 2) { if (!box.querySelector('.empty')) box.prepend(el('p', { class: 'empty' }, '歷史資料累積中（每 30 分鐘一筆）')); $('table').replaceChildren(); return; }
+  box.querySelector('.empty')?.remove();
+  const W = box.clientWidth || 600, H = 240, L = 36, R = 56, T = 12, B = 26;
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+  const vals = pts.flatMap(p => [p.cs, p.xs]).filter(v => v != null);
+  let lo = Math.min(-30, ...vals), hi = Math.max(30, ...vals);
+  lo = Math.floor(lo / 10) * 10; hi = Math.ceil(hi / 10) * 10;
+  const x = t => L + (W - L - R) * (t1 === t0 ? 0 : (t - t0) / (t1 - t0));
+  const y = v => T + (H - T - B) * (hi - v) / (hi - lo);
+  const ns = 'http://www.w3.org/2000/svg';
+  const s = (tag, a) => { const e = document.createElementNS(ns, tag); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Claude 與 Codex 週盈餘 7 天趨勢' });
+  for (let v = lo; v <= hi; v += 10) {
+    svg.append(s('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 }));
+    if (v % 20 === 0 || v === 0) { const tx = s('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = (v > 0 ? '+' : '') + v; svg.append(tx); }
+  }
+  const days = new Set();
+  for (const p of pts) { const d = new Date(p.t * 1000); const key = d.toDateString(); if (!days.has(key) && d.getHours() < 2) { days.add(key); const tx = s('text', { x: x(p.t), y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = `${d.getMonth() + 1}/${d.getDate()}`; svg.append(tx); } }
+  const series = [['cs', 'var(--claude)', 'Claude'], ['xs', 'var(--codex)', 'Codex']];
+  for (const [k, c, name] of series) {
+    const seg = pts.filter(p => p[k] != null);
+    if (!seg.length) continue;
+    svg.append(s('path', { d: seg.map((p, i) => (i ? 'L' : 'M') + x(p.t).toFixed(1) + ' ' + y(p[k]).toFixed(1)).join(''), fill: 'none', stroke: c, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    const last = seg[seg.length - 1];
+    svg.append(s('circle', { cx: x(last.t), cy: y(last[k]), r: 4, fill: c, stroke: 'var(--surface)', 'stroke-width': 2 }));
+    const tx = s('text', { x: x(last.t) + 8, y: y(last[k]) + 4, 'font-size': 12, fill: 'var(--ink-2)' }); tx.textContent = `${name} ${last[k] >= 0 ? '+' : ''}${Math.round(last[k])}`; svg.append(tx);
+  }
+  const cross = s('line', { y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden' });
+  const dots = series.map(([, c]) => s('circle', { r: 4, fill: c, stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' }));
+  svg.append(cross, ...dots);
+  const hit = s('rect', { x: L, y: T, width: W - L - R, height: H - T - B, fill: 'transparent' });
+  const move = ev => {
+    const bb = svg.getBoundingClientRect(), px = (ev.touches ? ev.touches[0].clientX : ev.clientX) - bb.left;
+    const t = t0 + (t1 - t0) * Math.max(0, Math.min(1, (px * W / bb.width - L) / (W - L - R)));
+    const p = pts.reduce((a, b) => Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a);
+    cross.setAttribute('x1', x(p.t)); cross.setAttribute('x2', x(p.t)); cross.setAttribute('visibility', 'visible');
+    series.forEach(([k], i) => { if (p[k] == null) return dots[i].setAttribute('visibility', 'hidden'); dots[i].setAttribute('cx', x(p.t)); dots[i].setAttribute('cy', y(p[k])); dots[i].setAttribute('visibility', 'visible'); });
+    const d = new Date(p.t * 1000);
+    tip.innerHTML = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · M${p.mode} ${(ROUTE[p.route] || [p.route])[0]}<br>Claude <b>${p.cs == null ? '–' : (p.cs >= 0 ? '+' : '') + Math.round(p.cs)}</b>　Codex <b>${p.xs == null ? '–' : (p.xs >= 0 ? '+' : '') + Math.round(p.xs)}</b>`;
+    tip.style.display = 'block';
+    const tx = x(p.t) * bb.width / W;
+    tip.style.left = Math.min(bb.width - tip.offsetWidth, Math.max(0, tx - tip.offsetWidth / 2)) + 'px';
+    tip.style.top = '-8px';
+  };
+  const leave = () => { cross.setAttribute('visibility', 'hidden'); dots.forEach(d => d.setAttribute('visibility', 'hidden')); tip.style.display = 'none'; };
+  hit.addEventListener('pointermove', move); hit.addEventListener('pointerleave', leave); hit.addEventListener('touchmove', move, { passive: true }); hit.addEventListener('touchend', leave);
+  svg.append(hit);
+  box.prepend(svg);
+  const recent = pts.slice(-48).reverse();
+  const tb = el('table', {}, el('tr', {}, ...['時間', '模式', 'Claude 5h', 'Claude 7d', 'Claude 盈餘', 'Codex 5h', 'Codex 7d', 'Codex 盈餘'].map(h => el('th', {}, h))));
+  const f = v => v == null ? '–' : Math.round(v);
+  for (const p of recent) { const d = new Date(p.t * 1000); tb.append(el('tr', {}, ...[`${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, 'M' + p.mode, f(p.c5) + '%', f(p.c7) + '%', f(p.cs), f(p.x5) + '%', f(p.x7) + '%', f(p.xs)].map(v => el('td', {}, String(v))))); }
+  $('table').replaceChildren(tb);
+}
+
+async function load() {
+  try {
+    const [a, b] = await Promise.all([fetch('data/snapshot.json', { cache: 'no-store' }), fetch('data/history.jsonl', { cache: 'no-store' })]);
+    snap = await a.json();
+    hist = b.ok ? (await b.text()).split('\n').filter(Boolean).map(l => JSON.parse(l)) : [];
+    render();
+  } catch (e) {
+    $('stamp').textContent = '讀不到資料：' + e.message; $('stamp').className = 'stamp stale';
+  }
+}
+load();
+setInterval(render, 30000);
+setInterval(load, 5 * 60000);
+addEventListener('resize', () => drawTrend());
+</script>
+</body>
+</html>
