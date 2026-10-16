@@ -278,9 +278,10 @@ const ACTION = {
   degradeHours: 6,             // 超過幾小時把行動卡降級
   stale: m => `已 ${m} 沒更新：Mac 可能關機、睡眠或推送失敗，以下是最後一次的狀態。`,
   degrade: '數據過期，建議僅供參考',
-  // 今日可用預算：週剩 ÷ 剩餘天數；「比平均寬／緊」對照平均每天 100/7 ≈ 14%
+  // 今日可用預算：週剩 ÷ 剩餘天數；對照平均每天 100/7 ≈ 14%，差距在 avgTol 個百分點內算「約平均」
   budget: {
-    perDay: (v, left, days, loose) => ({ num: `≈ ${v}`, unit: '% / 天', sub: `週剩 ${left}% ÷ ${days} · ${loose ? '比平均寬' : '比平均緊'}` }),
+    avgTol: 1,
+    perDay: (v, left, days, cmp) => ({ num: `≈ ${v}`, unit: '% / 天', sub: `週剩 ${left}% ÷ ${days} · ${{ loose: '比平均寬', tight: '比平均緊', avg: '約平均' }[cmp]}` }),
     lastDay: (left, when) => ({ num: `${left}`, unit: '% 今天用完', sub: `${when}，剩下的不用就作廢` }),
     none: { num: '–', unit: '', sub: '讀不到週額度' },
   },
@@ -445,7 +446,10 @@ function renderBudget() {
     if (snap[p] && c) {
       const left = Math.max(0, 100 - c.used), days = (c.R - now) / 86400;
       if (days <= 1) b = ACTION.budget.lastDay(Math.round(left), whenBack(c.R, '重置'));
-      else { const v = left / days; b = ACTION.budget.perDay(v < 10 ? v.toFixed(1) : Math.round(v), Math.round(left), `${days.toFixed(1)} 天`, v > 100 / 7); }
+      else {
+        const v = left / days, d = v - 100 / 7;
+        b = ACTION.budget.perDay(v < 10 ? v.toFixed(1) : Math.round(v), Math.round(left), `${days.toFixed(1)} 天`, Math.abs(d) <= ACTION.budget.avgTol ? 'avg' : d > 0 ? 'loose' : 'tight');
+      }
     }
     return el('div', { class: 'budget-tile', 'data-p': p },
       el('div', { class: 'bt-name' }, el('span', { class: 'dot', style: `background:var(--${p})` }), `${NAME[p]} 今天可用`),
@@ -573,7 +577,7 @@ function renderReasons(m) {
     const ov = ACTION.override[m.override] ? ACTION.override[m.override](actionCtx())[1] : m.override;
     items.push(['覆寫', `${ov}${base && base !== m.route ? `→ 改為「${(ROUTE[m.route] || [m.route])[0]}」` : ''}`]);
   }
-  items.push(['主控', m.hub === 'opus' ? (m.claude === 'tight' ? 'Opus：Claude 吃緊但手上有重置卷，先用卷不降級' : 'Opus：Claude 週額度不吃緊') : 'Sonnet：Claude 週額度吃緊、沒有可用的重置卷']);
+  items.push(['主控', m.hub === 'opus' ? (cardAdj.claude?.from === 'tight' ? 'Opus：Claude 吃緊但手上有重置卷，先用卷不降級' : 'Opus：Claude 週額度不吃緊') : 'Sonnet：Claude 週額度吃緊、沒有可用的重置卷']);
   $('reasons').replaceChildren(...items.map(([k, t]) => el('li', {}, el('span', {}, el('b', {}, k + ' '), t))));
 }
 
