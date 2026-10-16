@@ -98,6 +98,19 @@ for (const name of names) {
     check(`${t}：無水平捲動`, !r.hscroll);
     // --- 第一批視覺化：今日預算、燃燒曲線、route 時間帶、矩陣熱度、白話判斷 ---
     check(`${t}：今日預算 2 格、各有每日 % 或「今天用完」`, r.budget.length === 2 && ['claude', 'codex'].every((p, i) => !sc[p] || /% \/ 天|今天用完/.test(r.budget[i])), JSON.stringify(r.budget));
+    for (const [i, p] of ['claude', 'codex'].entries()) {
+      if (!sc[p] || sc[p].week_reset_in <= 86400) continue;
+      const d = (100 - sc[p].week_used) / (sc[p].week_reset_in / 86400) - 100 / 7, cmp = Math.abs(d) <= 1 ? '約平均' : d > 0 ? '比平均寬' : '比平均緊';
+      check(`${t}：${p} 今日預算標「${cmp}」（±1 個百分點內算約平均）`, r.budget[i]?.includes(cmp), r.budget[i]);
+    }
+    if (name === 'rich' && vp.tag === 'desktop') {   // 夾具沒有剛好落在平均的情況：把 Codex 週已用改成「剛好平均 +0.5」，重畫預算格
+      const avg = await page.evaluate(() => {
+        const w = snap.codex.week, days = (w.resets_at - nowS()) / 86400;
+        w.used = 100 - (100 / 7 + 0.5) * days; renderBudget();
+        return document.querySelector('#budget .budget-tile[data-p="codex"]').innerText.replace(/\n/g, ' ');
+      });
+      check(`${t}：差距 0.5 個百分點時標「約平均」`, avg.includes('約平均'), avg);
+    }
     const WEEK = 7 * 86400;
     for (const p of ['claude', 'codex'].filter(p => sc[p])) {
       const b = r.burns.find(x => x.p === p), e = 100 * (1 - sc[p].week_reset_in / WEEK), want = sc[p].week_used / e * 100 > 100 ? 'empty' : 'left';
@@ -110,6 +123,9 @@ for (const name of names) {
     const wantWhy = [r.reasons[0]?.startsWith('Claude'), r.reasons[1]?.startsWith('Codex'), r.reasons.some(x => x.includes(`M${want.mode}`)),
       want.override === '-' || r.reasons.some(x => x.startsWith('覆寫')), r.reasons.some(x => x.startsWith('主控') && x.includes(want.hub === 'opus' ? 'Opus' : 'Sonnet')),
       !r.reasons[0]?.startsWith('Claude') || r.reasons[0].includes(sc.snapshot_age > 0 && sc.claude?.updated_ago > 21600 ? '過期' : { rich: '充裕', ok: '正常', tight: '吃緊' }[want.claude === 'ok' && sc.reserves?.cards?.some(c => c.provider === 'claude' && !c.used_at) ? 'tight' : want.claude])];
+    const hubWhy = r.reasons.find(x => x.startsWith('主控')) || '', cardLifted = /^Claude 吃緊.*重置卷/.test(r.reasons[0] || '');
+    check(`${t}：主控說明${cardLifted ? '寫出「有卷先用卷不降級」' : '不誤報用卷'}`, cardLifted ? hubWhy.includes('先用卷') : !hubWhy.includes('先用卷'), JSON.stringify({ hubWhy, claude: r.reasons[0] }));
+    if (name === 'reserve-card') check(`${t}：reserve-card 情境走到「Claude 吃緊＋有卷」`, cardLifted, r.reasons[0]);
     check(`${t}：「為什麼是這個模式」逐步說明（Claude／Codex／矩陣／覆寫／主控）`, r.reasons.length >= 4 && wantWhy.every(Boolean), JSON.stringify({ reasons: r.reasons, wantWhy }));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
     await page.close();
