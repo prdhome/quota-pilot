@@ -1,5 +1,5 @@
 {
- "generated_at": 1792241163,
+ "generated_at": 1792242966,
  "mode": {
   "mode": "5",
   "hub": "opus",
@@ -11,34 +11,34 @@
   "card": "-"
  },
  "explain": [
-  "claude: ok — week elapsed 15% used 30% surplus -15 (tight ≤ -15 or week left < 15; rich ≥ 4); 5h left 79%; tight but Claude reset card available → opus",
-  "codex:  rich — 5h left 58% week left 48% surplus -22",
+  "claude: ok — week elapsed 15% used 31% surplus -16 (tight ≤ -15 or week left < 15; rich ≥ 5); 5h left 70%; tight but Claude reset card available → opus",
+  "codex:  rich — 5h left 51% week left 47% surplus -22",
   "matrix: (ok,rich) → mode 5; override - → route delegate",
   "note:   claude tight → ok（有 1 張卷）",
   "note:   codex lean → rich（有 3 張卷）"
  ],
  "claude": {
   "five": {
-   "used": 21.0,
+   "used": 30.0,
    "resets_at": 1792245600.0
   },
   "week": {
-   "used": 30.0,
+   "used": 31.0,
    "resets_at": 1792756800.0
   },
-  "updated_at": 1792241120,
-  "surplus": -15.3
+  "updated_at": 1792242961,
+  "surplus": -16.0
  },
  "codex": {
   "five": {
-   "used": 42.0,
+   "used": 49.0,
    "resets_at": 1792251913.0
   },
   "week": {
-   "used": 52.0,
+   "used": 53.0,
    "resets_at": 1792662576.0
   },
-  "surplus": -21.7
+  "surplus": -22.4
  },
  "cards": [
   {
@@ -65,7 +65,7 @@
  "credits": [
   {
    "provider": "claude-cloud",
-   "usd_left": 92,
+   "usd_left": 75,
    "usd_total": 100,
    "expires": "2026-11-05T15:59:00+08:00"
   }
