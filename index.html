@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quota Pilot</title>
-<meta name="description" content="Claude Code + Codex 額度動態調度：目前模式、主控模型與派工建議">
+<meta name="description" content="Claude Code + Codex 額度閘門：Codex 能否派工、主控模型與重置卷">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='none' stroke='%232a78d6' stroke-width='4'/><path d='M16 16 L16 6' stroke='%23eb6834' stroke-width='4' stroke-linecap='round'/></svg>">
 <style>
 :root {
@@ -225,7 +225,7 @@ footer a { color: inherit; }
     </div>
 
     <section class="card" aria-labelledby="h-trend">
-      <h2 id="h-trend">7 天趨勢：週盈餘與建議的使用途徑</h2>
+      <h2 id="h-trend">7 天趨勢：週盈餘與派工閘門</h2>
       <div class="legend"><span><i style="background:var(--claude)"></i>Claude 週盈餘</span><span><i style="background:var(--codex)"></i>Codex 週盈餘</span></div>
       <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
       <div class="legend routes" id="route-legend"></div>
@@ -245,15 +245,24 @@ const ROUTE = {
   hold: ['非急件延後', '額度見底：只處理急件，其餘排到 reset 之後。'],
 };
 const TIER = { rich: '充裕', ok: '正常', lean: '超速', tight: '吃緊', unknown: '未知' };
+// 派工閘門（ROUTER.md「額度調節」；route 欄 2026-10-17 停用，只留作 10/22 校準紀錄）：預設本體直做，額度只決定能不能派 Codex
+const GATE = {
+  open: ['Codex 可派', '預設本體直做；遇到批量／多輪迭代／大量輸出的任務可派 Codex。'],
+  'no-codex': ['不派 Codex', 'Codex 額度吃緊：一律本體直做，使用者明說要派才標「Codex 吃緊」照派。'],
+  hold: ['非急件延後', '兩邊都吃緊：只處理急件，其餘排到 reset 之後。'],
+};
+// p 可為 snapshot.mode（claude/codex）或 history 一行（ct/xt）
+const gateOf = p => {
+  const c = p.claude ?? p.ct, x = p.codex ?? p.xt, ov = p.override;
+  if (ov === 'both5h' || (c === 'tight' && x === 'tight')) return 'hold';
+  return x === 'tight' || ov === 'codex5h' ? 'no-codex' : 'open';
+};
 // 今日行動卡文案查表：要調整白話建議只改這裡。函式參數 c 見 actionCtx()（c5／x5 =「約 14:30 恢復」，c7／x7 =「約 10/16 09:00 重置」）；k 見 cardInfo()。
 const ACTION = {
-  route: {
-    delegate: '大量工作派給 Codex，自己專心規劃與驗收。',
-    cost: '派工或自己做都可以：哪邊省 Claude token 就用哪邊。',
-    direct: '傾向自己做，小任務不派 Codex（保留 Codex 額度）。',
-    'no-codex': '先不要派 Codex（它的週額度吃緊）：划算的自己做，太大的等 reset。',
-    'small-only': '兩邊都不寬裕：只做小任務，大任務等週額度 reset。',
-    hold: '額度見底：只處理急件，其餘延後到 reset 之後。',
+  gate: {
+    open: '預設自己做；批量、多輪迭代或大量輸出的任務可以派給 Codex。',
+    'no-codex': '先不要派 Codex（額度吃緊）：一律自己做。',
+    hold: '兩邊額度都吃緊：只處理急件，其餘延後到 reset 之後。',
   },
   hub: { opus: '主控用 Opus', sonnet: '主控改用 Sonnet（Claude 週額度吃緊，省 Opus 額度）' },
   override: {
@@ -262,9 +271,9 @@ const ACTION = {
     both5h: c => ['crit', `兩邊 5h 都快用完（Claude ${c.c5}；Codex ${c.x5}）。`],
     'claude5h-low': c => ['warn', `Claude 5h 偏低（${c.c5}）：新任務暫時轉給 Codex。`],
     'codex5h-low': c => ['warn', `Codex 5h 偏低（${c.x5}）：新任務暫時自己做。`],
-    'weekend-claude': c => ['info', `Claude 週額度${c.c7}、還有剩：放寬用 Opus 自己做，別浪費。`],
-    'weekend-codex': c => ['info', `Codex 週額度${c.x7}、還有剩：多派工把它用掉。`],
-    'weekend-both': () => ['info', '兩邊週額度都快重置而且有剩：放手用。'],
+    'weekend-claude': c => ['info', `Claude 週額度${c.c7}、還有剩（僅供參考）。`],
+    'weekend-codex': c => ['info', `Codex 週額度${c.x7}、還有剩（僅供參考，不改變派工判準）。`],
+    'weekend-both': () => ['info', '兩邊週額度都快重置而且有剩（僅供參考）。'],
   },
   card: {
     use: k => `建議現在使用 ${k.name} 重置卷（週額度快用完）：最近一張 ${k.date} 到期、剩 ${k.left}。用完記得跑 quota-reserve.sh use ${k.p}。`,
@@ -285,11 +294,9 @@ const ACTION = {
     lastDay: (left, when) => ({ num: `${left}`, unit: '% 今天用完', sub: `${when}，剩下的不用就作廢` }),
     none: { num: '–', unit: '', sub: '讀不到週額度' },
   },
-  // 7 天趨勢底下的 route 時間帶：6 種 route 併成 4 組（顏色＝誰做事：派工＝Codex 藍、自己做＝Claude 橘）
-  routeGroup: { delegate: 'delegate', cost: 'cost', direct: 'self', 'no-codex': 'self', 'small-only': 'hold', hold: 'hold' },
+  // 7 天趨勢底下的閘門時間帶（由每筆的 ct／xt／override 推，見 gateOf）
   groups: {
-    delegate: ['派工（Codex 做）', 'var(--codex)'], cost: ['照成本', 'var(--r-cost)'],
-    self: ['自己做（Claude 做）', 'var(--claude)'], hold: ['收斂（小任務／延後）', 'url(#hatch)'],
+    open: ['Codex 可派', 'var(--codex)'], 'no-codex': ['不派 Codex', 'var(--claude)'], hold: ['非急件延後', 'url(#hatch)'],
   },
   // Codex 等級門檻（顯示用，須與 bin/quota-mode.sh 的 LEFT_TIGHT／CODEX_DEFICIT／CODEX_RICH 預設值一致；tests/policy-test.sh 檢查）
   thr: { leftTight: 15, codexDeficit: 25, codexRich: 15 },
@@ -334,7 +341,7 @@ function renderAction(m, age) {
   $('fresh').className = 'fresh' + (stale ? ' stale' : '');
   $('why-fresh').hidden = !stale; $('why-fresh').textContent = stale ? ACTION.stale(fmtAge(age)) : '';
   $('degrade').hidden = !degraded; $('degrade').textContent = degraded ? ACTION.degrade : '';
-  $('headline').textContent = ACTION.route[m.route] || `route=${m.route}`;
+  $('headline').textContent = ACTION.gate[gateOf(m)];
   const todo = [], ctx = actionCtx();
   if (m.override && m.override !== '-') todo.push(ACTION.override[m.override] ? ACTION.override[m.override](ctx) : ['warn', `暫時覆寫：${m.override}`]);
   const signals = m.card && m.card !== '-' ? m.card.split(',').map(s => s.split(':')) : [];
@@ -349,7 +356,7 @@ function renderAction(m, age) {
   }
   todo.push(['', ACTION.hub[m.hub] + (m.subagent ? `，subagent 用 ${m.subagent === 'opus' ? 'Opus' : 'Sonnet'}。` : '。')]);
   $('todo').replaceChildren(...todo.slice(0, 3).map(([k, t]) => el('li', { 'data-kind': k || 'note' }, t)));
-  const level = degraded ? 'crit' : todo.some(([k]) => k === 'crit') || m.route === 'hold' ? 'crit' : stale || todo.some(([k]) => k === 'warn' || k === 'card') ? 'warn' : 'ok';
+  const level = degraded ? 'crit' : todo.some(([k]) => k === 'crit') || gateOf(m) === 'hold' ? 'crit' : stale || todo.some(([k]) => k === 'warn' || k === 'card') ? 'warn' : 'ok';
   $('action').dataset.level = level;
   $('action').classList.toggle('degraded', degraded);
 }
@@ -361,7 +368,7 @@ function render() {
   $('stamp').className = 'stamp' + (age > ACTION.staleMin * 60 ? ' stale' : '');
   renderAction(m, age);
   renderBudget();
-  const [label, desc] = ROUTE[m.route] || [m.route, ''];
+  const [label, desc] = GATE[gateOf(m)];
   $('mode-n').textContent = 'M' + m.mode;
   $('route').textContent = label;
   $('route-desc').textContent = desc;
@@ -405,9 +412,9 @@ function render() {
       const [n, rt] = [MATRIX[i][j * 2], MATRIX[i][j * 2 + 1]];
       const sh = shares[n] || 0;
       mx.push(el('div', { class: 'cell' + (String(n) === String(m.mode) ? ' on' : ''), 'data-mode': n, 'data-share': sh.toFixed(1),
-        title: `${ROUTE[rt][1]}${sh ? `　過去 7 天 ${sh.toFixed(1)}% 時間` : ''}`,
+        title: `舊 route：${ROUTE[rt][0]}（已停用，10/22 校準用）${sh ? `　過去 7 天 ${sh.toFixed(1)}% 時間` : ''}`,
         style: sh ? `background:color-mix(in oklab, var(--codex) ${Math.round(8 + 32 * sh / maxShare)}%, var(--surface-2))` : '' },
-        el('b', {}, 'M' + n), el('span', {}, ROUTE[rt][0]), sh ? el('small', {}, sh < 1 ? '<1%' : `${Math.round(sh)}%`) : null));
+        el('b', {}, 'M' + n), sh ? el('small', {}, sh < 1 ? '<1%' : `${Math.round(sh)}%`) : null));
     }
   });
   $('matrix').replaceChildren(...mx);
@@ -571,11 +578,10 @@ function renderReasons(m) {
       : xt === 'lean' ? `${TIER.lean}：週盈餘 ${sg(sv)} < 0（用得比週期快）`
       : `${TIER.ok}：週盈餘 ${sg(sv)}，介於 0 與 ${T.codexRich} 之間`) + adj('codex')]);
   }
-  const base = MATRIX.flat().reduce((a, v, i, arr) => v === +m.mode && typeof v === 'number' ? arr[i + 1] : a, null);
-  items.push(['矩陣', `Claude ${TIER[m.claude] || m.claude} × Codex ${TIER[m.codex === 'unknown' ? 'lean' : m.codex] || m.codex} → M${m.mode}「${(ROUTE[base] || [base])[0]}」`]);
+  items.push(['矩陣', `Claude ${TIER[m.claude] || m.claude} × Codex ${TIER[m.codex === 'unknown' ? 'lean' : m.codex] || m.codex} → M${m.mode}（矩陣只留作校準紀錄）；閘門：${GATE[gateOf(m)][0]}`]);
   if (m.override && m.override !== '-') {
     const ov = ACTION.override[m.override] ? ACTION.override[m.override](actionCtx())[1] : m.override;
-    items.push(['覆寫', `${ov}${base && base !== m.route ? `→ 改為「${(ROUTE[m.route] || [m.route])[0]}」` : ''}`]);
+    items.push(['覆寫', ov]);
   }
   items.push(['主控', m.hub === 'opus' ? (cardAdj.claude?.from === 'tight' ? 'Opus：Claude 吃緊但手上有重置卷，先用卷不降級' : 'Opus：Claude 週額度不吃緊') : 'Sonnet：Claude 週額度吃緊、沒有可用的重置卷']);
   $('reasons').replaceChildren(...items.map(([k, t]) => el('li', {}, el('span', {}, el('b', {}, k + ' '), t))));
@@ -643,7 +649,7 @@ function drawTrend() {
     svg.append(s('circle', { cx: x(last.t), cy: y(last[k]), r: 4, fill: c, stroke: 'var(--surface)', 'stroke-width': 2 }));
     const tx = s('text', { x: x(last.t) + 8, y: y(last[k]) + 4, 'font-size': 12, fill: 'var(--ink-2)' }); tx.textContent = `${name} ${last[k] >= 0 ? '+' : ''}${Math.round(last[k])}`; svg.append(tx);
   }
-  const grp = p => ACTION.routeGroup[p.route] || 'cost';
+  const grp = gateOf;
   const strip = s('g', { class: 'strip' });
   for (let i = 0; i < pts.length - 1; i++) {
     let j = i;
@@ -652,7 +658,7 @@ function drawTrend() {
     if (x1 - x0 >= 0.5) strip.append(s('rect', { x: x0, y: SY, width: x1 - x0, height: SH, rx: 2, fill: ACTION.groups[grp(pts[i])][1], stroke: 'var(--surface)', 'stroke-width': 1, 'data-group': grp(pts[i]) }));
     i = Math.max(i, j - 1);           // 下一段從 j 開始；遇到空窗（j === i）就單純往下走
   }
-  const lab = s('text', { x: L - 6, y: SY + SH - 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); lab.textContent = '建議';
+  const lab = s('text', { x: L - 6, y: SY + SH - 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); lab.textContent = '閘門';
   svg.append(strip, lab);
   const marks = s('g', { class: 'marks' });
   pts.forEach((p, i) => {
@@ -677,7 +683,7 @@ function drawTrend() {
     series.forEach(([k], i) => { if (p[k] == null) return dots[i].setAttribute('visibility', 'hidden'); dots[i].setAttribute('cx', x(p.t)); dots[i].setAttribute('cy', y(p[k])); dots[i].setAttribute('visibility', 'visible'); });
     const d = new Date(p.t * 1000);
     const extra = [p.override && p.override !== '-' ? '▲ 覆寫 ' + p.override : '', p.card && p.card !== '-' ? '◆ ' + p.card : ''].filter(Boolean).join('　');
-    tip.innerHTML = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · M${p.mode} ${(ROUTE[p.route] || [p.route])[0]}（${ACTION.groups[grp(p)][0]}）<br>Claude <b>${p.cs == null ? '–' : (p.cs >= 0 ? '+' : '') + Math.round(p.cs)}</b>　Codex <b>${p.xs == null ? '–' : (p.xs >= 0 ? '+' : '') + Math.round(p.xs)}</b>${extra ? '<br>' + extra : ''}`;
+    tip.innerHTML = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')} · M${p.mode}（Claude ${TIER[p.ct] || '–'} × Codex ${TIER[p.xt] || '–'}）· ${ACTION.groups[grp(p)][0]}<br>Claude <b>${p.cs == null ? '–' : (p.cs >= 0 ? '+' : '') + Math.round(p.cs)}</b>　Codex <b>${p.xs == null ? '–' : (p.xs >= 0 ? '+' : '') + Math.round(p.xs)}</b>${extra ? '<br>' + extra : ''}`;
     tip.style.display = 'block';
     const tx = x(p.t) * bb.width / W;
     tip.style.left = Math.min(bb.width - tip.offsetWidth, Math.max(0, tx - tip.offsetWidth / 2)) + 'px';
@@ -688,9 +694,9 @@ function drawTrend() {
   svg.append(hit);
   box.prepend(svg);
   const recent = pts.slice(-48).reverse();
-  const tb = el('table', {}, el('tr', {}, ...['時間', '模式', '建議', 'Claude 5h', 'Claude 7d', 'Claude 盈餘', 'Codex 5h', 'Codex 7d', 'Codex 盈餘'].map(h => el('th', {}, h))));
+  const tb = el('table', {}, el('tr', {}, ...['時間', '模式', '閘門', 'Claude 5h', 'Claude 7d', 'Claude 盈餘', 'Codex 5h', 'Codex 7d', 'Codex 盈餘'].map(h => el('th', {}, h))));
   const f = v => v == null ? '–' : Math.round(v);
-  for (const p of recent) { const d = new Date(p.t * 1000); tb.append(el('tr', {}, ...[`${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, 'M' + p.mode, (ROUTE[p.route] || [p.route])[0], f(p.c5) + '%', f(p.c7) + '%', f(p.cs), f(p.x5) + '%', f(p.x7) + '%', f(p.xs)].map(v => el('td', {}, String(v))))); }
+  for (const p of recent) { const d = new Date(p.t * 1000); tb.append(el('tr', {}, ...[`${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, 'M' + p.mode, ACTION.groups[grp(p)][0], f(p.c5) + '%', f(p.c7) + '%', f(p.cs), f(p.x5) + '%', f(p.x7) + '%', f(p.xs)].map(v => el('td', {}, String(v))))); }
   $('table').replaceChildren(tb);
 }
 
