@@ -1,5 +1,5 @@
 {
- "generated_at": 1792336727,
+ "generated_at": 1792338530,
  "mode": {
   "mode": "5",
   "hub": "opus",
@@ -26,19 +26,19 @@
    "used": 57.0,
    "resets_at": 1792756800.0
   },
-  "updated_at": 1792336690,
-  "surplus": -26.5
+  "updated_at": 1792338490,
+  "surplus": -26.2
  },
  "codex": {
   "five": {
    "used": 0.0,
-   "resets_at": 1792354690.0
+   "resets_at": 1792356490.0
   },
   "week": {
    "used": 29.0,
    "resets_at": 1792880999.0
   },
-  "surplus": -19.0
+  "surplus": -18.7
  },
  "cards": [
   {
