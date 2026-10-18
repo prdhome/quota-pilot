@@ -117,7 +117,7 @@ for (const name of names) {
       check(`${t}：${p} 燃燒曲線（實線＋進度虛線＋推估「${want === 'empty' ? '見底' : '結束時剩'}」）`,
         b && b.svg && b.actual === 1 && b.pace === 1 && b.proj === want && (want === 'empty' ? /見底/ : /約剩 \d+%/).test(b.note), JSON.stringify(b));
     }
-    check(`${t}：route 時間帶有色段＋圖例 6 項`, r.strip >= 1 && r.legendRoutes === 6, JSON.stringify({ strip: r.strip, legend: r.legendRoutes }));
+    check(`${t}：route 時間帶有色段＋圖例 5 項`, r.strip >= 1 && r.legendRoutes === 5, JSON.stringify({ strip: r.strip, legend: r.legendRoutes }));
     const sum = r.shares.reduce((a, b) => a + b, 0);
     check(`${t}：矩陣熱度占比合計 ≈100%、目前格 > 0`, Math.abs(sum - 100) <= 1.5 && r.onShare > 0, JSON.stringify({ sum, on: r.onShare }));
     const wantWhy = [r.reasons[0]?.startsWith('Claude'), r.reasons[1]?.startsWith('Codex'), r.reasons.some(x => x.includes(`M${want.mode}`)),
