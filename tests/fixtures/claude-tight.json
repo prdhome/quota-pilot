@@ -4,5 +4,5 @@
  "codex": {"five_used": 10, "week_used": 43, "five_reset_in": 3600, "week_reset_in": 127008},
  "reserves": {"cards": [], "credits": []},
  "expect": {"mode": {"mode": "9", "hub": "sonnet", "route": "delegate", "subagent": "sonnet", "claude": "tight", "codex": "rich", "override": "-", "card": "-"},
-            "action": ["大量工作派給 Codex", "Sonnet"]}
+            "action": ["預設自己做", "Sonnet"]}
 }
