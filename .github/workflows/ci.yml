@@ -27,6 +27,8 @@ jobs:
         run: bash tests/snapshot-test.sh
       - name: Analyze tests
         run: bash tests/analyze-test.sh
+      - name: Work-stats tests
+        run: bash tests/work-stats-test.sh
 
   web:
     name: Dashboard smoke test

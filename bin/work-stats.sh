@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# work-stats.sh — 近 7 天 orchestrator 直做／派工次數與通過數（stdout JSON），給儀表板健康的 Agent OS 區塊。不耗 LLM token。
+# 只含次數：不含 task id、slug、路徑（gh-pages 是公開的）。測試用任務（mtest／smoke／verify-）不算。
+# 來源：$QP_ORCH（預設 ~/Documents/orchestrator）的 tasks/direct-log.tsv（outcome 第 6 欄）、tasks/metrics.tsv（第 8 欄）、tasks/active/。
+ORCH="${QP_ORCH:-$HOME/Documents/orchestrator}"
+[ -d "$ORCH/tasks" ] || { echo "work-stats: 找不到 $ORCH/tasks" >&2; exit 1; }
+python3 -I - "$ORCH/tasks" <<'PY'
+import json, os, sys, time
+from datetime import datetime, timezone
+t = sys.argv[1]; now = time.time(); cut = now - 7 * 86400
+def rows(name, ok_col):
+    p = os.path.join(t, name); n = ok = 0
+    for line in (open(p, encoding="utf-8").read().splitlines()[1:] if os.path.exists(p) else []):
+        f = line.split("\t")
+        try: ts = datetime.strptime(f[0], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
+        except (ValueError, IndexError): continue
+        if ts < cut or len(f) <= ok_col or f[1].startswith(("mtest", "smoke", "verify-")): continue
+        n += 1; ok += f[ok_col] == "pass"
+    return {"n": n, "ok": ok}
+ad = os.path.join(t, "active")
+print(json.dumps({"generated_at": round(now), "direct": rows("direct-log.tsv", 5), "dispatch": rows("metrics.tsv", 7),
+                  "active": len([x for x in os.listdir(ad) if not x.startswith(".")]) if os.path.isdir(ad) else 0}))
+PY

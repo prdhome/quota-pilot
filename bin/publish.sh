@@ -23,6 +23,8 @@ fi
 touch "$P/.nojekyll"
 snap="$("$ROOT/bin/snapshot.sh")" || exit 1
 printf '%s\n' "$snap" > "$P/data/snapshot.json"
+# 派工／直做次數（只有次數）；orchestrator 不在就沿用上一份
+work="$("$ROOT/bin/work-stats.sh" 2>/dev/null)" && printf '%s\n' "$work" > "$P/data/work.json"
 python3 -I - "$P/data/history.jsonl" "$snap" <<'PY'
 import json, sys, time
 f, snap = sys.argv[1], json.loads(sys.argv[2])
