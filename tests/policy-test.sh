@@ -27,6 +27,8 @@ st 95 $((NOW-60)) 90 $((NOW-DAY)) $((NOW-8*3600))  # 舊讀數、週期已 reset
 eq "閒置後週期已 reset → opus" opus "$(pm)"
 st 10 $((NOW+3600)) 87 $((NOW+DAY*147/100)) $((NOW-7*3600))
 eq "過期 7h 且未 reset → 預設 opus" opus "$(pm)"
+st 10 $((NOW-60)) 95 $((NOW+DAY*3)) $((NOW-8*3600))
+eq "只有 5h reset、7d 讀數 8h 前週剩 5 → 過期、預設 opus 且不給 detail 數字" "opus" "$(pm --detail)"
 eq "缺檔 → 預設 opus" opus "$(QUOTA_RESERVES="$T/none.json" "$ROOT/bin/pick-model.sh" --state "$T/nope.json" --now $NOW)"
 echo '{"five_hour_used_pct":1}' > "$T/s.json"
 eq "壞檔 → 預設 opus" opus "$(pm)"
@@ -134,7 +136,7 @@ eq "detail 缺檔 → fresh=missing" missing "$("$ROOT/bin/quota-mode.sh" --deta
 st 10 $((NOW+3600)) 87 $W $((NOW-7*3600))
 eq "detail 過期 7h 未 reset → fresh=stale" stale "$(qd | kv claude_fresh)"
 st 95 $((NOW-60)) 50 $W $((NOW-8*3600))
-eq "detail 只有 5h reset、讀數 8h 前 → fresh=stale-partial" stale-partial "$(qd | kv claude_fresh)"
+eq "detail 只有 5h reset、讀數 8h 前 → 仍算過期 fresh=stale" stale "$(qd | kv claude_fresh)"
 cst tight; printf '{"cards":[{"provider":"claude","expires":"2099-01-01T00:00:00+00:00","used_at":null}]}' > "$T/c1.json"
 eq "detail 有卷未用 → raw=tight" tight "$(qd "$T/c1.json" | kv claude_raw)"
 eq "detail 有卷未用 → policy=ok" ok "$(qd "$T/c1.json" | kv claude_policy)"

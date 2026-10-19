@@ -382,6 +382,9 @@ function render() {
     const d = snap[key];
     const card = el('section', { class: 'card', 'aria-label': name });
     card.append(el('div', { class: 'prov-head' }, el('div', { class: 'prov-name' }, el('span', { class: 'dot', style: `background:${color}` }), name), el('span', { class: 'tier' }, '7d ' + (TIER[m[key]] || '–'))));
+    const dt = snap.detail || {}, raw = dt[key + '_raw'], fr = dt[key + '_fresh'];
+    if (fr === 'stale') card.append(el('p', { class: 'degrade' }, '額度讀數已超過 6 小時沒更新，等級是預設值、別當成充足；開一次 Claude Code 讓 status line 更新讀數。'));
+    else if (raw && raw !== m[key]) card.append(el('p', { class: 'degrade' }, raw === 'unknown' ? '讀不到額度資料，等級是預設值，別當成充足。' : `未算重置卷時其實是「${TIER[raw] || raw}」：等級靠 ${dt[key + '_cards']} 張卷撐住，卷用完或過期就會掉級。`));
     if (!d) { card.append(el('p', { class: 'empty' }, '讀不到資料')); return card; }
     const meter = (label, w, pace) => {
       const used = w.resets_at && w.resets_at <= nowS() ? 0 : w.used;

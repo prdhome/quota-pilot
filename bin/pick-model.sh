@@ -3,7 +3,7 @@
 # 2026-10-15 起「主控一律 Opus」（有加購用量當安全網）：只有 Claude 7d 吃緊才 sonnet——
 #   吃緊 = 週盈餘（週期已過% − 週已用%）≤ −DEFICIT，或週剩 < LEFT_MIN。5h 不影響主控（交給 quota-mode.sh 覆寫層）。
 # 吃緊但還有未用、未過期的 Claude 重置卷（~/.claude/state/quota-reserves.json，`QUOTA_RESERVES` 可改）→ 仍 opus（該用卷，不該降級；提示由 quota-mode.sh card 欄給）。
-# 視窗已過 reset → 該視窗用量視為 0。資料過期（>6h 且無視窗 reset）／缺檔 → opus（無法判斷吃緊時用預設）。
+# 視窗已過 reset → 該視窗用量視為 0。資料過期（>6h 且 7d 未 reset；只有 5h reset 仍算過期）／缺檔 → opus（無法判斷吃緊時用預設）。
 # `--current opus`：已在 Opus 時 DEFICIT 加 HYST（遲滯），避免在門檻附近來回建議切換。
 # `--detail`：stdout 在模型後附 `<盈餘> <5h剩%> <週剩%> <5h_reset> <週reset> <週盈餘達 rich 門檻 1|0> <讀數秒齡>`（給 quota-mode.sh 的矩陣等級用；
 #   rich 門檻 = SURPLUS_MIN × min(1, 週期已過% / RAMP)，週初較低）。讀不到資料時只印模型。
@@ -48,7 +48,8 @@ if week_reset <= now:  # 週期已重置：用量歸零，reset 往後推到下�
 if five_reset and five_reset <= now:
     five_used = 0; notes.append("5h reset since reading")
 age = now - d["updated_epoch"]
-if age > 6 * 3600 and not notes: out("opus", f"stale {age/3600:.1f}h → default opus")
+if age > 6 * 3600 and week_reset == float(d["seven_day_resets_at"]):  # 只有 5h reset 不代表 7d 讀數可信（2026-10-20）
+    out("opus", f"stale {age/3600:.1f}h → default opus")
 elapsed = 100 * (1 - (week_reset - now) / WEEK)
 surplus = elapsed - week_used
 week_left = 100 - week_used

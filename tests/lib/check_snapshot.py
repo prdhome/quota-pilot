@@ -12,7 +12,7 @@ num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
 snap = json.load(open(sys.argv[1]))
 sc = json.load(open(sys.argv[2])) if len(sys.argv) > 2 else None
 
-need(set(snap) == {"generated_at", "mode", "explain", "claude", "codex", "cards", "credits"}, f"top-level keys {sorted(snap)}")
+need(set(snap) == {"generated_at", "mode", "explain", "claude", "codex", "cards", "credits", "detail"}, f"top-level keys {sorted(snap)}")
 need(isinstance(snap.get("generated_at"), int) and abs(snap["generated_at"] - time.time()) < 300, f"generated_at {snap.get('generated_at')!r} 不是現在的整數 epoch")
 m = snap.get("mode")
 need(isinstance(m, dict) and list(m) == ["mode", "hub", "route", "subagent", "claude", "codex", "override", "card"], f"mode keys {m!r}")
