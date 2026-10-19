@@ -4,6 +4,6 @@
  "codex": {"five_used": 10, "week_used": 70, "five_reset_in": 3600, "week_reset_in": 127008},
  "reserves": {"cards": [], "credits": []},
  "snapshot_age": 28800,
- "expect": {"mode": {"mode": "6", "hub": "opus", "route": "cost", "subagent": "opus", "claude": "ok", "codex": "ok", "override": "-", "card": "-"}, "explain_contains": "stale",
+ "expect": {"mode": {"mode": "6", "hub": "opus", "route": "cost", "subagent": "sonnet", "claude": "ok", "codex": "ok", "override": "-", "card": "-"}, "explain_contains": "stale",
             "action": ["僅供參考", "Mac"]}
 }
