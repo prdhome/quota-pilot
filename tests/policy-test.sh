@@ -39,59 +39,59 @@ xt() { case $1 in rich) echo "10 43 $((NOW+3600)) $W" ;; ok) echo "10 70 $((NOW+
 while read -r c x want; do
   cst "$c"; eq "矩陣 claude=$c codex=$x" "$want" "$(qm "$(xt "$x")")"
 done <<'M'
-rich rich mode=1 hub=opus route=delegate subagent=opus ov=-
-rich ok mode=2 hub=opus route=cost subagent=opus ov=-
-rich lean mode=3 hub=opus route=direct subagent=opus ov=-
-rich tight mode=4 hub=opus route=no-codex subagent=opus ov=-
-ok rich mode=5 hub=opus route=delegate subagent=opus ov=-
-ok ok mode=6 hub=opus route=cost subagent=opus ov=-
-ok lean mode=7 hub=opus route=cost subagent=opus ov=-
-ok tight mode=8 hub=opus route=small-only subagent=opus ov=-
+rich rich mode=1 hub=opus route=delegate subagent=sonnet ov=-
+rich ok mode=2 hub=opus route=cost subagent=sonnet ov=-
+rich lean mode=3 hub=opus route=direct subagent=sonnet ov=-
+rich tight mode=4 hub=opus route=no-codex subagent=sonnet ov=-
+ok rich mode=5 hub=opus route=delegate subagent=sonnet ov=-
+ok ok mode=6 hub=opus route=cost subagent=sonnet ov=-
+ok lean mode=7 hub=opus route=cost subagent=sonnet ov=-
+ok tight mode=8 hub=opus route=small-only subagent=sonnet ov=-
 tight rich mode=9 hub=sonnet route=delegate subagent=sonnet ov=-
 tight ok mode=10 hub=sonnet route=delegate subagent=sonnet ov=-
 tight lean mode=11 hub=sonnet route=hold subagent=sonnet ov=-
 tight tight mode=12 hub=sonnet route=hold subagent=sonnet ov=-
 M
-cst rich; eq "codex 讀不到 → unknown，矩陣當 lean（不推給 Codex）" "mode=3 hub=opus route=direct subagent=opus claude=rich codex=unknown override=- card=-" \
+cst rich; eq "codex 讀不到 → unknown，矩陣當 lean（不推給 Codex）" "mode=3 hub=opus route=direct subagent=sonnet claude=rich codex=unknown override=- card=-" \
   "$("$ROOT/bin/quota-mode.sh" --state "$T/s.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv x)"
 cst tight; eq "Claude 吃緊＋codex unknown → hold（不盲目派工）" "mode=11 hub=sonnet route=hold subagent=sonnet ov=-" "$(qm x)"
 st 80 $((NOW+3600)) 43 $W $NOW
-eq "Claude 5h 偏低＋codex unknown → 不轉派工" "mode=3 hub=opus route=direct subagent=opus ov=-" "$(qm x)"
+eq "Claude 5h 偏低＋codex unknown → 不轉派工" "mode=3 hub=opus route=direct subagent=sonnet ov=-" "$(qm x)"
 st 95 $((NOW+3600)) 43 $W $NOW
-eq "Claude 5h 剩 5 → 暫停 Claude、派工（7d 仍 rich）" "mode=2 hub=opus route=delegate subagent=opus ov=claude5h" "$(qm "$(xt ok)")"
-eq "Claude 5h 剩 5、Codex 吃緊 → hold" "mode=4 hub=opus route=hold subagent=opus ov=claude5h" "$(qm "$(xt tight)")"
+eq "Claude 5h 剩 5 → 暫停 Claude、派工（7d 仍 rich）" "mode=2 hub=opus route=delegate subagent=sonnet ov=claude5h" "$(qm "$(xt ok)")"
+eq "Claude 5h 剩 5、Codex 吃緊 → hold" "mode=4 hub=opus route=hold subagent=sonnet ov=claude5h" "$(qm "$(xt tight)")"
 cst rich
-eq "Codex 5h 剩 5 → 不派 Codex" "mode=2 hub=opus route=no-codex subagent=opus ov=codex5h" "$(qm "95 70 $((NOW+3600)) $W")"
+eq "Codex 5h 剩 5 → 不派 Codex" "mode=2 hub=opus route=no-codex subagent=sonnet ov=codex5h" "$(qm "95 70 $((NOW+3600)) $W")"
 st 95 $((NOW+3600)) 43 $W $NOW
-eq "兩邊 5h 都 < 10 → hold" "mode=2 hub=opus route=hold subagent=opus ov=both5h" "$(qm "95 70 $((NOW+3600)) $W")"
+eq "兩邊 5h 都 < 10 → hold" "mode=2 hub=opus route=hold subagent=sonnet ov=both5h" "$(qm "95 70 $((NOW+3600)) $W")"
 eq "Claude 5h 先見底且 1h 內 reset → explain 提示可等" "1" "$("$ROOT/bin/quota-mode.sh" --explain --state "$T/s.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv "$(xt ok)" 2>&1 >/dev/null | grep -c '可等')"
 st 80 $((NOW+3600)) 43 $W $NOW
-eq "Claude 5h 剩 20 → 7d 仍 rich、暫轉派工" "mode=2 hub=opus route=delegate subagent=opus ov=claude5h-low" "$(qm "$(xt ok)")"
-eq "Claude 5h 剩 20、Codex 超速 → 不轉給 Codex，維持直做" "mode=3 hub=opus route=direct subagent=opus ov=-" "$(qm "$(xt lean)")"
+eq "Claude 5h 剩 20 → 7d 仍 rich、暫轉派工" "mode=2 hub=opus route=delegate subagent=sonnet ov=claude5h-low" "$(qm "$(xt ok)")"
+eq "Claude 5h 剩 20、Codex 超速 → 不轉給 Codex，維持直做" "mode=3 hub=opus route=direct subagent=sonnet ov=-" "$(qm "$(xt lean)")"
 cst rich
-eq "Codex 5h 剩 20 → 暫轉直做" "mode=2 hub=opus route=direct subagent=opus ov=codex5h-low" "$(qm "80 70 $((NOW+3600)) $W")"
+eq "Codex 5h 剩 20 → 暫轉直做" "mode=2 hub=opus route=direct subagent=sonnet ov=codex5h-low" "$(qm "80 70 $((NOW+3600)) $W")"
 st 10 $((NOW+3600)) 60 $((NOW+DAY/2)) $NOW   # Claude 週過 93%、用 60% → 盈餘 33，12h 內 reset
 eq "週末清倉 Claude → 直做＋Opus subagent" "mode=2 hub=opus route=direct subagent=opus ov=weekend-claude" "$(qm "10 50 $((NOW+3600)) $((NOW+DAY*3))")"
 cst ok
-eq "週末清倉 Codex → 派工" "mode=5 hub=opus route=delegate subagent=opus ov=weekend-codex" "$(qm "10 60 $((NOW+3600)) $((NOW+DAY/2))")"
+eq "週末清倉 Codex → 派工" "mode=5 hub=opus route=delegate subagent=sonnet ov=weekend-codex" "$(qm "10 60 $((NOW+3600)) $((NOW+DAY/2))")"
 
 # --- 重置卷 ---
 RESV="$T/r.json"
 card() { printf '{"cards":[%s]}' "$1" > "$RESV"; }
 iso() { python3 -c "import sys,datetime;print(datetime.datetime.fromtimestamp(int(sys.argv[1]),datetime.timezone.utc).isoformat())" "$1"; }
 cst rich; card "{\"provider\":\"codex\",\"expires\":\"$(iso $((NOW+DAY*7)))\",\"used_at\":null}"
-eq "Codex 超速＋1 張卷 → 視同 ok" "mode=2 hub=opus route=cost subagent=opus ov=- card=-" "$(qm "$(xt lean)")"
-eq "Codex 7d 吃緊＋卷 → ok 並提示用卷（週剩 10、自然 reset 1.47 天後）" "mode=2 hub=opus route=cost subagent=opus ov=- card=codex:use" "$(qm "$(xt tight)")"
-eq "自然 reset 不到 24h → 不提示用卷" "mode=2 hub=opus route=cost subagent=opus ov=- card=-" "$(qm "10 90 $((NOW+3600)) $((NOW+DAY/2))")"
+eq "Codex 超速＋1 張卷 → 視同 ok" "mode=2 hub=opus route=cost subagent=sonnet ov=- card=-" "$(qm "$(xt lean)")"
+eq "Codex 7d 吃緊＋卷 → ok 並提示用卷（週剩 10、自然 reset 1.47 天後）" "mode=2 hub=opus route=cost subagent=sonnet ov=- card=codex:use" "$(qm "$(xt tight)")"
+eq "自然 reset 不到 24h → 不提示用卷" "mode=2 hub=opus route=cost subagent=sonnet ov=- card=-" "$(qm "10 90 $((NOW+3600)) $((NOW+DAY/2))")"
 card "{\"provider\":\"codex\",\"expires\":\"$(iso $((NOW+DAY*7)))\",\"used_at\":null},{\"provider\":\"codex\",\"expires\":\"$(iso $((NOW+DAY*14)))\",\"used_at\":null}"
-eq "Codex 超速＋2 張卷 → 視同 rich" "mode=1 hub=opus route=delegate subagent=opus ov=- card=-" "$(qm "$(xt lean)")"
+eq "Codex 超速＋2 張卷 → 視同 rich" "mode=1 hub=opus route=delegate subagent=sonnet ov=- card=-" "$(qm "$(xt lean)")"
 card "{\"provider\":\"codex\",\"expires\":\"$(iso $((NOW+DAY)))\",\"used_at\":null}"
-eq "卷 24h 內到期、週已用 70% → 提示用掉" "mode=2 hub=opus route=cost subagent=opus ov=- card=codex:expiring" "$(qm "$(xt ok)")"
+eq "卷 24h 內到期、週已用 70% → 提示用掉" "mode=2 hub=opus route=cost subagent=sonnet ov=- card=codex:expiring" "$(qm "$(xt ok)")"
 card "{\"provider\":\"codex\",\"expires\":\"$(iso $((NOW+DAY*7)))\",\"used_at\":\"2026-10-01T00:00:00+08:00\"},{\"provider\":\"codex\",\"expires\":\"$(iso $((NOW-60)))\",\"used_at\":null}"
-eq "已用／過期的卷不算" "mode=3 hub=opus route=direct subagent=opus ov=- card=-" "$(qm "$(xt lean)")"
+eq "已用／過期的卷不算" "mode=3 hub=opus route=direct subagent=sonnet ov=- card=-" "$(qm "$(xt lean)")"
 cst tight; card "{\"provider\":\"claude\",\"expires\":\"$(iso $((NOW+DAY*7)))\",\"used_at\":null}"
 eq "pick-model：Claude 7d 吃緊＋卷 → opus" opus "$(pm)"
-eq "Claude 7d 吃緊＋卷 → 視同 ok、主控維持 opus、提示用卷" "mode=6 hub=opus route=cost subagent=opus ov=- card=claude:use" "$(qm "$(xt ok)")"
+eq "Claude 7d 吃緊＋卷 → 視同 ok、主控維持 opus、提示用卷" "mode=6 hub=opus route=cost subagent=sonnet ov=- card=claude:use" "$(qm "$(xt ok)")"
 unset RESV
 
 # --- quota-reserve.sh check／use：QP_STATE（Claude）、QP_CODEX_TSV（Codex）注入目前週 reset ---
@@ -124,5 +124,30 @@ for pair in leftTight:LEFT_TIGHT codexDeficit:CODEX_DEFICIT codexRich:CODEX_RICH
   got=$(printf '%s' "$thr_line" | sed -nE "s/.*${js}: *([0-9.]+).*/\1/p")
   eq "門檻同步：site ACTION.thr.${js} ＝ quota-mode.sh ${sh}（${want}）" "${want:-缺}" "${got:-缺}"
 done
+
+# --- quota-mode.sh --detail：raw／policy 分離、freshness、預估 ---
+qd() { "$ROOT/bin/quota-mode.sh" --detail --state "$T/s.json" --now "$NOW" --reserves "${1:-$T/none.json}" --codex-tsv "${2:-$(xt ok)}" | sed -n 's/^detail: //p' | tr ' ' '\n'; }
+kv() { grep "^$1=" | cut -d= -f2; }
+eq "detail：第一行格式不變" "mode=" "$("$ROOT/bin/quota-mode.sh" --detail --state "$T/s.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv "$(xt ok)" | head -1 | cut -c1-5)"
+eq "detail 缺檔 → claude_raw=unknown" unknown "$(QUOTA_RESERVES=x "$ROOT/bin/quota-mode.sh" --detail --state "$T/nope.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv "$(xt ok)" | sed -n 's/^detail: //p' | tr ' ' '\n' | kv claude_raw)"
+eq "detail 缺檔 → fresh=missing" missing "$("$ROOT/bin/quota-mode.sh" --detail --state "$T/nope.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv "$(xt ok)" | sed -n 's/^detail: //p' | tr ' ' '\n' | kv claude_fresh)"
+st 10 $((NOW+3600)) 87 $W $((NOW-7*3600))
+eq "detail 過期 7h 未 reset → fresh=stale" stale "$(qd | kv claude_fresh)"
+st 95 $((NOW-60)) 50 $W $((NOW-8*3600))
+eq "detail 只有 5h reset、讀數 8h 前 → fresh=stale-partial" stale-partial "$(qd | kv claude_fresh)"
+cst tight; printf '{"cards":[{"provider":"claude","expires":"2099-01-01T00:00:00+00:00","used_at":null}]}' > "$T/c1.json"
+eq "detail 有卷未用 → raw=tight" tight "$(qd "$T/c1.json" | kv claude_raw)"
+eq "detail 有卷未用 → policy=ok" ok "$(qd "$T/c1.json" | kv claude_policy)"
+eq "detail 卷數" 1 "$(qd "$T/c1.json" | kv claude_cards)"
+eq "detail 週用 95%／過 79% → proj7=120" 120 "$(qd | kv claude_proj7)"
+st 5 $((NOW+3600)) 69 $W $NOW
+eq "detail Claude 5h 剩 95 → left5=95" 95 "$(qd "$T/none.json" "10 95 $((NOW+3600)) $W" | kv claude_left5)"
+eq "detail Codex 5h 剩 5 → codex5h 閘門仍在第一行" codex5h "$("$ROOT/bin/quota-mode.sh" --detail --state "$T/s.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv "95 50 $((NOW+3600)) $W" | head -1 | sed -E 's/.*override=([^ ]*).*/\1/')"
+
+# --- subagent 欄：預設 sonnet，Claude 週末清倉才 opus ---
+sa() { "$ROOT/bin/quota-mode.sh" --state "$T/s.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv "$1" | sed -E 's/.*subagent=([^ ]*).*/\1/'; }
+cst rich; eq "subagent：hub=opus 平常 → sonnet" sonnet "$(sa "$(xt ok)")"
+WE=$((NOW+DAY/2)); st 10 $((NOW+3600)) 50 $WE $NOW
+eq "subagent：Claude 週末清倉 → opus" opus "$(sa "10 90 $((NOW+3600)) $((NOW+DAY*5))")"
 
 echo "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

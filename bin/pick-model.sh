@@ -5,7 +5,7 @@
 # 吃緊但還有未用、未過期的 Claude 重置卷（~/.claude/state/quota-reserves.json，`QUOTA_RESERVES` 可改）→ 仍 opus（該用卷，不該降級；提示由 quota-mode.sh card 欄給）。
 # 視窗已過 reset → 該視窗用量視為 0。資料過期（>6h 且無視窗 reset）／缺檔 → opus（無法判斷吃緊時用預設）。
 # `--current opus`：已在 Opus 時 DEFICIT 加 HYST（遲滯），避免在門檻附近來回建議切換。
-# `--detail`：stdout 在模型後附 `<盈餘> <5h剩%> <週剩%> <5h_reset> <週reset> <週盈餘達 rich 門檻 1|0>`（給 quota-mode.sh 的矩陣等級用；
+# `--detail`：stdout 在模型後附 `<盈餘> <5h剩%> <週剩%> <5h_reset> <週reset> <週盈餘達 rich 門檻 1|0> <讀數秒齡>`（給 quota-mode.sh 的矩陣等級用；
 #   rich 門檻 = SURPLUS_MIN × min(1, 週期已過% / RAMP)，週初較低）。讀不到資料時只印模型。
 # 測試用：`--state FILE`、`--now EPOCH`。測試：tests/policy-test.sh。門檻同步：orchestrator mods/quota-monitor/hooks/lib.ts（orchestrator tests/quota-policy-test.sh 檢查）。
 # 用法：claude --model "$(bin/pick-model.sh)"
@@ -65,5 +65,5 @@ if tight:
     except Exception: pass
 if notes: why += "; " + ", ".join(notes)
 out("sonnet" if tight else "opus", why,
-    f"{surplus:.1f} {100 - five_used:.1f} {week_left:.1f} {five_reset:.0f} {week_reset:.0f} {int(surplus >= rich_min)}")
+    f"{surplus:.1f} {100 - five_used:.1f} {week_left:.1f} {five_reset:.0f} {week_reset:.0f} {int(surplus >= rich_min)} {age:.0f}")
 PY
