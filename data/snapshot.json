@@ -1,5 +1,5 @@
 {
- "generated_at": 1792495421,
+ "generated_at": 1792497224,
  "mode": {
   "mode": "5",
   "hub": "opus",
@@ -24,8 +24,8 @@
   "claude_left5": "88",
   "claude_left7": "20",
   "claude_surplus": "-23",
-  "claude_reset_h": "73",
-  "claude_proj7": "141",
+  "claude_reset_h": "72",
+  "claude_proj7": "140",
   "claude_runway_h": "24",
   "claude_cards": "1",
   "codex_raw": "ok",
@@ -34,9 +34,9 @@
   "codex_left5": "96",
   "codex_left7": "99",
   "codex_surplus": "2",
-  "codex_reset_h": "164",
-  "codex_proj7": "40",
-  "codex_runway_h": "418",
+  "codex_reset_h": "163",
+  "codex_proj7": "36",
+  "codex_runway_h": "468",
   "codex_cards": "3"
  },
  "claude": {
@@ -48,8 +48,8 @@
    "used": 80.0,
    "resets_at": 1792756800.0
   },
-  "updated_at": 1792495364,
-  "surplus": -23.2
+  "updated_at": 1792497164,
+  "surplus": -22.9
  },
  "codex": {
   "five": {
@@ -60,7 +60,7 @@
    "used": 1.0,
    "resets_at": 1793085011.0
   },
-  "surplus": 1.5
+  "surplus": 1.8
  },
  "cards": [
   {
