@@ -40,5 +40,6 @@ except FileNotFoundError: rows = []
 rows = [r for r in rows if r["t"] >= time.time() - 14 * 86400] + [row]
 open(f, "w").write("".join(json.dumps(r) + "\n" for r in rows))
 PY
+[ $? = 0 ] || { echo "history 更新失敗，不推送" >&2; exit 1; }
 [ $DRY = 1 ] && { echo "dry-run：已更新 $P"; exit 0; }
 cd "$P" && git add -A && git commit -qm "data: $(date -u +%Y-%m-%dT%H:%MZ)" && git push -q origin gh-pages 2>&1 | tail -3
