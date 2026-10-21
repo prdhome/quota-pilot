@@ -13,7 +13,7 @@
 #   重置卷（bin/quota-reserve.sh，~/.claude/state/quota-reserves.json）：該邊有未用、未過期的卷 → lean／tight 視同 ok（hub 不降 sonnet）；≥2 張 → ok／lean 視同 rich；
 #   card 欄提示用卷：<邊>:use = 週剩 ≤ CARD_USE_LEFT 且自然 reset > 24h；<邊>:expiring = 最早到期卷 48h 內到期、週已用 ≥ 50% 且自然 reset > 24h。用卷由使用者手動按，按完跑 `quota-reserve.sh use <邊>`。
 # `--detail`：第一行不變，另印第二行 `detail: …`（raw＝未計卷的原始級別、policy＝含卷後；fresh＝fresh|stale-partial|stale|missing；
-#   left5／left7／surplus／reset_h；proj7＝照目前週速率到 reset 時的預估週用量%；runway_h＝照週速率用完週額度的小時數；cards＝未用卷數）。
+#   left5／left7／surplus／reset_h；proj7＝照目前週速率到 reset 時的預估週用量%；runway_h＝照週速率用完週額度的小時數；本週期用過卷則速率從 used_at 起算、不足 1h 不估；cards＝未用卷數）。
 #   Claude 讀不到時 policy 仍是 ok（舊行為），raw=unknown 提醒別當充足。
 # `--explain` 附依據到 stderr。測試用：`--codex-tsv "<5h> <7d> <5h_reset> <7d_reset>"`、`--now EPOCH`、其餘參數（--state、--current）轉給 pick-model.sh。
 LEFT_TIGHT="${LEFT_TIGHT:-15}"
@@ -116,9 +116,14 @@ print(f"mode={mode} hub={hub} route={route} subagent={subagent} claude={claude} 
 if detail == "1":
     def side(n, s, raw, pol, fresh):
         if not s: return f"{n}_raw={raw} {n}_policy={pol} {n}_fresh={fresh} {n}_cards={len(live(n))}"
-        el = WEEK - (s["r7"] - now); used = 100 - s["left7"]
-        rate = used / el if el > 3600 else None        # %/秒，週初不足 1h 不估
-        proj = f"{used * WEEK / el:.0f}" if rate else "-"
+        start = s["r7"] - WEEK; used = 100 - s["left7"]
+        for k in cards:                                # 用卷只歸零、不重開週期 → 速率從本週期最後一次用卷起算（2026-10-22）
+            try: u = datetime.fromisoformat(k["used_at"]).timestamp() if k.get("provider") == n and k.get("used_at") else 0
+            except Exception: continue
+            if start < u <= now: start = u
+        el = now - start
+        rate = used / el if el > 3600 else None        # %/秒，週初或用卷後不足 1h 不估
+        proj = f"{used + rate * (s['r7'] - now):.0f}" if rate else "-"
         run = f"{s['left7'] / rate / 3600:.0f}" if rate and used > 0 else "-"
         return (f"{n}_raw={raw} {n}_policy={pol} {n}_fresh={fresh} {n}_left5={s['left5']:.0f} {n}_left7={s['left7']:.0f} "
                 f"{n}_surplus={s['surplus']:.0f} {n}_reset_h={(s['r7'] - now) / 3600:.0f} {n}_proj7={proj} {n}_runway_h={run} {n}_cards={len(live(n))}")
