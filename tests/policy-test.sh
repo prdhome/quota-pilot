@@ -142,6 +142,17 @@ eq "detail 有卷未用 → raw=tight" tight "$(qd "$T/c1.json" | kv claude_raw)
 eq "detail 有卷未用 → policy=ok" ok "$(qd "$T/c1.json" | kv claude_policy)"
 eq "detail 卷數" 1 "$(qd "$T/c1.json" | kv claude_cards)"
 eq "detail 週用 95%／過 79% → proj7=120" 120 "$(qd | kv claude_proj7)"
+# 用卷只歸零、不重開週期 → 速率改從 used_at 起算（2026-10-22；舊算法週用 20%／過 79% 得 proj7=25，過度樂觀）
+st 10 $((NOW+3600)) 20 $((NOW+DAY*147/100)) $NOW
+iso() { python3 -c "import sys,datetime;print(datetime.datetime.fromtimestamp(int(sys.argv[1]),datetime.timezone.utc).isoformat())" "$1"; }
+cu() { printf '{"cards":[{"provider":"claude","expires":"2099-01-01T00:00:00+00:00","used_at":"%s"}]}' "$(iso "$1")" > "$T/cu.json"; }
+cu $((NOW-10*3600))
+eq "detail 10h 前用卷、之後用 20% → proj7=91" 91 "$(qd "$T/cu.json" | kv claude_proj7)"
+eq "detail 10h 前用卷、之後用 20% → runway_h=40" 40 "$(qd "$T/cu.json" | kv claude_runway_h)"
+cu $((NOW-30*60))
+eq "detail 用卷不足 1h → proj7 不估" - "$(qd "$T/cu.json" | kv claude_proj7)"
+cu $((NOW-DAY*6))
+eq "detail 卷用在本週期之前 → 照週期起算 proj7=25" 25 "$(qd "$T/cu.json" | kv claude_proj7)"
 st 5 $((NOW+3600)) 69 $W $NOW
 eq "detail Claude 5h 剩 95 → left5=95" 95 "$(qd "$T/none.json" "10 95 $((NOW+3600)) $W" | kv claude_left5)"
 eq "detail Codex 5h 剩 5 → codex5h 閘門仍在第一行" codex5h "$("$ROOT/bin/quota-mode.sh" --detail --state "$T/s.json" --now "$NOW" --reserves "$T/none.json" --codex-tsv "95 50 $((NOW+3600)) $W" | head -1 | sed -E 's/.*override=([^ ]*).*/\1/')"
