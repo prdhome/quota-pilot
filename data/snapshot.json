@@ -1,5 +1,5 @@
 {
- "generated_at": 1792636101,
+ "generated_at": 1792637905,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -7,59 +7,59 @@
   "subagent": "sonnet",
   "claude": "rich",
   "codex": "rich",
-  "override": "-",
+  "override": "claude5h",
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 80% used 9% surplus 71 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 33%",
-  "codex:  rich — 5h left 50% week left 58% surplus -16",
-  "matrix: (rich,rich) → mode 1; override - → route delegate",
+  "claude: rich — week elapsed 80% used 11% surplus 69 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 8%",
+  "codex:  rich — 5h left 45% week left 57% surplus -17",
+  "matrix: (rich,rich) → mode 1; override claude5h → route delegate",
   "note:   codex lean → rich（有 3 張卷）"
  ],
  "detail": {
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "33",
-  "claude_left7": "91",
-  "claude_surplus": "71",
-  "claude_reset_h": "34",
-  "claude_proj7": "39",
-  "claude_runway_h": "103",
+  "claude_left5": "8",
+  "claude_left7": "89",
+  "claude_surplus": "69",
+  "claude_reset_h": "33",
+  "claude_proj7": "45",
+  "claude_runway_h": "86",
   "claude_cards": "0",
   "codex_raw": "lean",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "50",
-  "codex_left7": "58",
-  "codex_surplus": "-16",
-  "codex_reset_h": "125",
-  "codex_proj7": "163",
-  "codex_runway_h": "60",
+  "codex_left5": "45",
+  "codex_left7": "57",
+  "codex_surplus": "-17",
+  "codex_reset_h": "124",
+  "codex_proj7": "165",
+  "codex_runway_h": "58",
   "codex_cards": "3"
  },
  "claude": {
   "five": {
-   "used": 67.0,
+   "used": 92.0,
    "resets_at": 1792641600.0
   },
   "week": {
-   "used": 9.0,
+   "used": 11.0,
    "resets_at": 1792756800.0
   },
-  "updated_at": 1792636092,
-  "surplus": 71.0
+  "updated_at": 1792637848,
+  "surplus": 69.3
  },
  "codex": {
   "five": {
-   "used": 50.0,
+   "used": 55.0,
    "resets_at": 1792643411.0
   },
   "week": {
-   "used": 42.0,
+   "used": 43.0,
    "resets_at": 1793085011.0
   },
-  "surplus": -16.2
+  "surplus": -16.9
  },
  "cards": [
   {
