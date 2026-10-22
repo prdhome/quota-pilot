@@ -496,11 +496,19 @@ function drawBurn(box, p, color) {
   svg.append(sv('line', { class: 'pace', x1: x(c.S), y1: y(0), x2: x(c.R), y2: y(100), stroke: 'var(--muted)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }));
   const nowX = sv('line', { x1: x(Math.min(now, c.R)), x2: x(Math.min(now, c.R)), y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1 });
   svg.append(nowX);
-  let msg = '週期剛開始，資料還不夠推估。', proj = 'none';
+  let start = c.S;
+  for (const card of snap.cards || []) {
+    const usedAt = card.provider === p && card.used_at ? Date.parse(card.used_at) / 1000 : NaN;
+    if (usedAt > start && usedAt <= now) start = usedAt;
+  }
+  const afterCard = start > c.S;
+  let msg = afterCard ? '用卷後資料不足，還不夠推估。' : '週期剛開始，資料還不夠推估。', proj = 'none';
   if (pts.length) {
     const [tl, ul] = pts[pts.length - 1];
-    if (tl - c.S >= 0.05 * WEEK && ul > 0) {
-      const slope = ul / (tl - c.S), uEnd = ul + slope * (c.R - tl);
+    // 用卷只歸零、不重開週期：同 quota-mode.sh --detail，最後一次用卷後超過 1h 才估；未用卷保留原門檻。
+    const elapsed = tl - start;
+    if ((afterCard ? elapsed > 3600 : elapsed >= 0.05 * WEEK) && ul > 0) {
+      const slope = ul / elapsed, uEnd = ul + slope * (c.R - tl);
       if (uEnd > 100) {
         const tz = tl + (100 - ul) / slope;
         svg.append(sv('path', { class: 'proj', d: `M${x(tl).toFixed(1)} ${y(ul).toFixed(1)}L${x(tz).toFixed(1)} ${y(100).toFixed(1)}`, stroke: color, 'stroke-width': 2, 'stroke-dasharray': '1 4', 'stroke-linecap': 'round', fill: 'none' }));
