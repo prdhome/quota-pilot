@@ -13,13 +13,16 @@ pm() { QUOTA_RESERVES="${RESV:-$T/none.json}" "$ROOT/bin/pick-model.sh" --state 
 st 10 $((NOW+3600)) 43 $((NOW+DAY*147/100)) $NOW   # 週期過 79%、用 43% → 盈餘 36
 eq "盈餘 36 → opus" opus "$(pm)"
 eq "detail 第 6 欄：盈餘 36 達 rich 門檻 → 1" 1 "$(pm --detail | awk '{print $7}')"
+eq "--effort 盈餘 36 達 rich → 不降 effort" opus "$(pm --effort)"
 st 75 $((NOW+3600)) 43 $((NOW+DAY*147/100)) $NOW
 eq "5h 剩 25 不影響主控 → opus" opus "$(pm)"
 st 10 $((NOW+3600)) 69 $((NOW+DAY*147/100)) $NOW   # 盈餘 10
 eq "盈餘 10 → opus" opus "$(pm)"
 eq "detail 第 6 欄：盈餘 10 未達 rich → 0" 0 "$(pm --detail | awk '{print $7}')"
+eq "--effort 盈餘 10 未達 rich → opus low" "opus low" "$(pm --effort)"
 st 10 $((NOW+3600)) 32 $((NOW+DAY*6)) $NOW   # 週期過 14%、用 32% → 盈餘 −18、週剩 68
 eq "盈餘 −18 → sonnet" sonnet "$(pm)"
+eq "--effort 吃緊 → sonnet 不附 low" sonnet "$(pm --effort)"
 eq "盈餘 −18 已在 opus（遲滯門檻 −25）→ opus" opus "$(pm --current opus)"
 st 10 $((NOW+3600)) 87 $((NOW+DAY*147/100)) $NOW   # 盈餘 −8、週剩 13
 eq "週剩 13 → sonnet" sonnet "$(pm)"

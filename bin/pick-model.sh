@@ -8,6 +8,7 @@
 # `--detail`：stdout 在模型後附 `<盈餘> <5h剩%> <週剩%> <5h_reset> <週reset> <週盈餘達 rich 門檻 1|0> <讀數秒齡>`（給 quota-mode.sh 的矩陣等級用；
 #   rich 門檻 = SURPLUS_MIN × min(1, 週期已過% / RAMP)，週初較低）。讀不到資料時只印模型。
 # 測試用：`--state FILE`、`--now EPOCH`。測試：tests/policy-test.sh。門檻同步：orchestrator mods/quota-monitor/hooks/lib.ts（orchestrator tests/quota-policy-test.sh 檢查）。
+# `--effort`：中間檔（opus 且週盈餘未達 rich 門檻）在模型後附 ` low`，給包裝帶 `--effort low`（2026-10-22，bench 6 題 low 無失分、省 16–40%）。
 # 用法：claude --model "$(bin/pick-model.sh)"
 DEFICIT="${PICK_DEFICIT:-15}"
 LEFT_MIN="${PICK_LEFT_MIN:-15}"
@@ -15,20 +16,21 @@ HYST="${PICK_HYST:-10}"
 SURPLUS_MIN="${PICK_SURPLUS_MIN:-15}"
 RAMP="${PICK_RAMP:-50}"
 RES="${QUOTA_RESERVES:-$HOME/.claude/state/quota-reserves.json}"
-f="$HOME/.claude/state/rate_limits.json"; now=""; cur=""; explain=0; detail=0
+f="$HOME/.claude/state/rate_limits.json"; now=""; cur=""; explain=0; detail=0; effort=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --explain) explain=1 ;;
     --detail) detail=1 ;;
+    --effort) effort=1 ;;
     --state) f="$2"; shift ;;
     --now) now="$2"; shift ;;
     --current) cur="$2"; shift ;;
   esac; shift
 done
 [ -f "$f" ] || { [ $explain = 1 ] && echo "no state file → default opus" >&2; echo opus; exit 0; }
-python3 -I - "$f" "$DEFICIT" "$LEFT_MIN" "$HYST" "$SURPLUS_MIN" "$RAMP" "$explain" "$now" "$cur" "$detail" "$RES" <<'PY'
+python3 -I - "$f" "$DEFICIT" "$LEFT_MIN" "$HYST" "$SURPLUS_MIN" "$RAMP" "$explain" "$now" "$cur" "$detail" "$RES" "$effort" <<'PY'
 import json, sys, time
-f, deficit, left_min, hyst, smin, ramp, explain, now, cur, detail, res = sys.argv[1:12]
+f, deficit, left_min, hyst, smin, ramp, explain, now, cur, detail, res, effort = sys.argv[1:13]
 deficit, left_min, hyst, smin, ramp = map(float, (deficit, left_min, hyst, smin, ramp))
 explain = explain == "1"
 now = float(now) if now else time.time()
@@ -65,6 +67,8 @@ if tight:
             tight = False; notes.append("tight but Claude reset card available → opus")
     except Exception: pass
 if notes: why += "; " + ", ".join(notes)
-out("sonnet" if tight else "opus", why,
+model = "sonnet" if tight else "opus"
+if effort == "1" and model == "opus" and surplus < rich_min: model += " low"
+out(model, why,
     f"{surplus:.1f} {100 - five_used:.1f} {week_left:.1f} {five_reset:.0f} {week_reset:.0f} {int(surplus >= rich_min)} {age:.0f}")
 PY
