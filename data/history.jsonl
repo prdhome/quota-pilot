@@ -393,3 +393,4 @@
 {"t": 1792724470, "mode": 1, "route": "direct", "hub": "opus", "override": "codex5h-low", "card": "-", "ct": "rich", "xt": "rich", "cr": 1792756800.0, "xr": 1793294079.0, "c5": 70.0, "c7": 45.0, "cs": 49.7, "x5": 79.0, "x7": 15.0, "xs": -9.2}
 {"t": 1792726273, "mode": 1, "route": "delegate", "hub": "opus", "override": "claude5h", "card": "-", "ct": "rich", "xt": "rich", "cr": 1792756800.0, "xr": 1793294079.0, "c5": 96.0, "c7": 48.0, "cs": 47.0, "x5": 83.0, "x7": 16.0, "xs": -9.9}
 {"t": 1792728076, "mode": 1, "route": "delegate", "hub": "opus", "override": "claude5h", "card": "-", "ct": "rich", "xt": "rich", "cr": 1792756800.0, "xr": 1793294080.0, "c5": 99.0, "c7": 48.0, "cs": 47.3, "x5": 83.0, "x7": 16.0, "xs": -9.6}
+{"t": 1792729880, "mode": 1, "route": "direct", "hub": "opus", "override": "weekend-claude", "card": "-", "ct": "rich", "xt": "rich", "cr": 1792756800.0, "xr": 1793294079.0, "c5": 0.0, "c7": 48.0, "cs": 47.5, "x5": 0.0, "x7": 16.0, "xs": -9.3}
