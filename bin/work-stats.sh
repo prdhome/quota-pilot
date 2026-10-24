@@ -27,7 +27,7 @@ try:
     out = r.stdout
     if r.returncode != 0 or not out.startswith("# 週回顧"):  # 失敗就留 null，頁面顯示「還沒接上」，不冒充 0
         raise RuntimeError("weekly-review failed")
-    rv = {"verdicts": sum(l.startswith("☐ 裁決") for l in out.splitlines()), "memory": sum(l.startswith("☐ memory") for l in out.splitlines())}
+    rv = {"verdicts": sum(l.startswith("☐") and " 裁決 " in l for l in out.splitlines()), "memory": sum(l.startswith("☐") and " memory " in l for l in out.splitlines())}  # 含覆核／格式錯誤／清理
 except Exception:
     pass
 print(json.dumps({"generated_at": round(now), "direct": rows("direct-log.tsv", 5), "dispatch": rows("metrics.tsv", 7),
