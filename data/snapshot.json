@@ -1,31 +1,31 @@
 {
- "generated_at": 1792861623,
+ "generated_at": 1792863429,
  "mode": {
-  "mode": "5",
-  "hub": "opus",
+  "mode": "9",
+  "hub": "sonnet",
   "route": "delegate",
   "subagent": "sonnet",
-  "claude": "ok",
+  "claude": "tight",
   "codex": "rich",
   "override": "-",
   "card": "-"
  },
  "explain": [
-  "claude: ok — week elapsed 17% used 31% surplus -14 (tight ≤ -15 or week left < 15; rich ≥ 5); 5h left 51%",
+  "claude: tight — week elapsed 18% used 34% surplus -16 (tight ≤ -15 or week left < 15; rich ≥ 5); 5h left 19%",
   "codex:  rich — 5h left 100% week left 72% surplus -14",
-  "matrix: (ok,rich) → mode 5; override - → route delegate",
+  "matrix: (tight,rich) → mode 9; override - → route delegate",
   "note:   codex lean → rich（有 2 張卷）"
  ],
  "detail": {
-  "claude_raw": "ok",
-  "claude_policy": "ok",
+  "claude_raw": "tight",
+  "claude_policy": "tight",
   "claude_fresh": "fresh",
-  "claude_left5": "51",
-  "claude_left7": "69",
-  "claude_surplus": "-14",
-  "claude_reset_h": "139",
-  "claude_proj7": "179",
-  "claude_runway_h": "65",
+  "claude_left5": "19",
+  "claude_left7": "66",
+  "claude_surplus": "-16",
+  "claude_reset_h": "138",
+  "claude_proj7": "193",
+  "claude_runway_h": "57",
   "claude_cards": "0",
   "codex_raw": "lean",
   "codex_policy": "rich",
@@ -34,32 +34,32 @@
   "codex_left7": "72",
   "codex_surplus": "-14",
   "codex_reset_h": "145",
-  "codex_proj7": "205",
-  "codex_runway_h": "59",
+  "codex_proj7": "201",
+  "codex_runway_h": "60",
   "codex_cards": "2"
  },
  "claude": {
   "five": {
-   "used": 49.0,
+   "used": 81.0,
    "resets_at": 1792870800.0
   },
   "week": {
-   "used": 31.0,
+   "used": 34.0,
    "resets_at": 1793361600.0
   },
-  "updated_at": 1792861618,
-  "surplus": -13.7
+  "updated_at": 1792863418,
+  "surplus": -16.4
  },
  "codex": {
   "five": {
    "used": 0.0,
-   "resets_at": 1792879621.0
+   "resets_at": 1792881422.0
   },
   "week": {
    "used": 28.0,
    "resets_at": 1793383953.0
   },
-  "surplus": -14.4
+  "surplus": -14.1
  },
  "cards": [
   {
