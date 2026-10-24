@@ -1,5 +1,5 @@
 {
- "generated_at": 1792852591,
+ "generated_at": 1792854399,
  "mode": {
   "mode": "5",
   "hub": "opus",
@@ -11,8 +11,8 @@
   "card": "-"
  },
  "explain": [
-  "claude: ok — week elapsed 16% used 26% surplus -10 (tight ≤ -15 or week left < 15; rich ≥ 5); 5h left 45%",
-  "codex:  rich — 5h left 56% week left 78% surplus -10",
+  "claude: ok — week elapsed 16% used 27% surplus -11 (tight ≤ -15 or week left < 15; rich ≥ 5); 5h left 93%",
+  "codex:  rich — 5h left 44% week left 76% surplus -12",
   "matrix: (ok,rich) → mode 5; override - → route delegate",
   "note:   codex lean → rich（有 2 張卷）"
  ],
@@ -20,46 +20,46 @@
   "claude_raw": "ok",
   "claude_policy": "ok",
   "claude_fresh": "fresh",
-  "claude_left5": "45",
-  "claude_left7": "74",
-  "claude_surplus": "-10",
+  "claude_left5": "93",
+  "claude_left7": "73",
+  "claude_surplus": "-11",
   "claude_reset_h": "141",
-  "claude_proj7": "164",
-  "claude_runway_h": "76",
+  "claude_proj7": "167",
+  "claude_runway_h": "73",
   "claude_cards": "0",
   "codex_raw": "lean",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "56",
-  "codex_left7": "78",
-  "codex_surplus": "-10",
-  "codex_reset_h": "148",
-  "codex_proj7": "181",
-  "codex_runway_h": "72",
+  "codex_left5": "44",
+  "codex_left7": "76",
+  "codex_surplus": "-12",
+  "codex_reset_h": "147",
+  "codex_proj7": "193",
+  "codex_runway_h": "66",
   "codex_cards": "2"
  },
  "claude": {
   "five": {
-   "used": 55.0,
-   "resets_at": 1792852800.0
+   "used": 7.0,
+   "resets_at": 1792870800.0
   },
   "week": {
-   "used": 26.0,
+   "used": 27.0,
    "resets_at": 1793361600.0
   },
-  "updated_at": 1792852591,
-  "surplus": -10.2
+  "updated_at": 1792854392,
+  "surplus": -10.9
  },
  "codex": {
   "five": {
-   "used": 44.0,
-   "resets_at": 1792860837.0
+   "used": 56.0,
+   "resets_at": 1792860838.0
   },
   "week": {
-   "used": 22.0,
-   "resets_at": 1793383953.0
+   "used": 24.0,
+   "resets_at": 1793383954.0
   },
-  "surplus": -9.9
+  "surplus": -11.6
  },
  "cards": [
   {
