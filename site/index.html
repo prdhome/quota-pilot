@@ -107,10 +107,22 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .cell.on { background: var(--accent-bg); border-color: var(--codex); }
 .cell.on b, .cell.on span { color: var(--ink); }
 .axis-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
-/* today budget */
+/* 下一步：下一個轉折、harness 提示、可複製指令 */
+.next { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--accent-bg); display: grid; gap: 6px; font-size: 14px; }
+.next p { margin: 0; }
+.next .k { font-weight: 700; margin-right: 6px; }
+.next .hint { color: var(--muted); font-size: 12px; }
+.cmd { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 8px; margin-right: 6px; border-radius: 6px; border: 1px solid var(--ring); background: var(--surface); color: var(--ink); cursor: pointer; }
+.cmd.done { border-color: var(--good); }
+/* 現況：每邊 5h／7d 剩餘量圓環（顏色＝嚴重度）＋今天可用 */
 .budget { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0 0 12px; }
-.budget-tile { background: var(--surface-2); border: 1px solid var(--ring); border-radius: 12px; padding: 10px 12px; min-width: 0; }
-.budget-tile .bt-name { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.budget-tile { background: var(--surface-2); border: 1px solid var(--ring); border-radius: 12px; padding: 10px 12px; min-width: 0; display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 6px 12px; align-items: center; }
+.budget-tile .bt-name { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.ring { display: grid; justify-items: center; gap: 1px; min-width: 58px; font-size: 11px; color: var(--ink-2); text-align: center; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.ring svg { width: 56px; height: 56px; display: block; }
+.ring b { font-weight: 600; color: var(--ink); }
+.bt-day { min-width: 0; }
+.bt-day .bt-label { font-size: 12px; color: var(--ink-2); margin: 0; }
 .budget-tile .bt-num { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; margin: 2px 0 0; }
 .budget-tile .bt-num small { font-size: 13px; font-weight: 500; color: var(--ink-2); margin-left: 2px; }
 .budget-tile .bt-sub { font-size: 12px; color: var(--ink-2); margin: 2px 0 0; }
@@ -167,6 +179,12 @@ details th, details td { text-align: right; padding: 4px 6px; border-bottom: 1px
 details th:first-child, details td:first-child { text-align: left; }
 .why { font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink-2); white-space: pre-wrap; margin: 8px 0 0; }
 .empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
+/* 沒有卷／點數時：重置卷區塊收成一行，矩陣獨占一列 */
+.lower.solo { grid-template-columns: minmax(0, 1fr); }
+.lower.solo .matrix { max-width: 680px; }
+.lower.solo #res-card { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 12px 18px; }
+.lower.solo #res-card h2 { margin: 0; }
+.lower.solo #res-card .empty { padding: 0; text-align: left; }
 footer { margin-top: 20px; font-size: 12px; color: var(--muted); text-align: center; }
 footer a { color: inherit; }
 @media (max-width: 760px) {
@@ -176,6 +194,7 @@ footer a { color: inherit; }
   .matrix { grid-template-columns: 40px repeat(4, minmax(0, 1fr)); font-size: 11px; }
   .cell { padding: 6px 2px; min-height: 46px; }
   .cell b { font-size: 12px; }
+  .budget { grid-template-columns: minmax(0, 1fr); }
   .budget-tile .bt-num { font-size: 19px; }
 }
 </style>
@@ -196,7 +215,12 @@ footer a { color: inherit; }
       <p class="degrade" id="degrade" hidden></p>
       <p class="headline" id="headline">–</p>
       <ul class="todo" id="todo"></ul>
-      <div class="budget" id="budget" aria-label="今日可用預算"></div>
+      <div class="next" id="next-box">
+        <p id="next"></p>
+        <p id="harness" hidden></p>
+        <p id="cmds"></p>
+      </div>
+      <div class="budget" id="budget" aria-label="現況：剩餘額度與今天可用"></div>
       <div class="hero-sub">
         <div class="mode-badge" title="模式"><b id="mode-n">–</b></div>
         <div>
@@ -209,7 +233,7 @@ footer a { color: inherit; }
 
     <div class="grid providers" id="providers"></div>
 
-    <div class="grid lower">
+    <div class="grid lower" id="lower">
       <section class="card" aria-labelledby="h-matrix">
         <h2 id="h-matrix">7d 模式矩陣</h2>
         <div class="matrix" id="matrix"></div>
@@ -218,7 +242,7 @@ footer a { color: inherit; }
         <ol class="reasons" id="reasons"></ol>
         <details><summary>原始判斷紀錄</summary><pre class="why" id="why"></pre></details>
       </section>
-      <section class="card" aria-labelledby="h-res">
+      <section class="card" id="res-card" aria-labelledby="h-res">
         <h2 id="h-res">重置卷與點數到期</h2>
         <div id="reserves"></div>
       </section>
@@ -287,6 +311,22 @@ const ACTION = {
   degradeHours: 6,             // 超過幾小時把行動卡降級
   stale: m => `已 ${m} 沒更新：Mac 可能關機、睡眠或推送失敗，以下是最後一次的狀態。`,
   degrade: '數據過期，建議僅供參考',
+  // 下一個轉折：在覆寫結束、照速度見底、週重置、卷到期中取最早的一個
+  next: {
+    label: '下一個轉折',
+    five: (who, back) => `${who} 5h 恢復${back ? `，回到「${back}」` : '，覆寫解除'}`,
+    empty: (p, R) => `照目前速度 ${p} 週額度見底（${R} 才重置）`,
+    reset: p => `${p} 週額度重置，模式重新判定`,
+    card: p => `${p} 重置卷到期`,
+    none: '未來 7 天沒有預期的切換',
+  },
+  // harness 提示（只顯示，不影響 quota-mode.sh 判定）
+  harness: {
+    claudeTight: '可考慮改用 Codex CLI 當主控，Claude 只做審查與收尾。',
+    claudeBlock: c => `Claude 5h ${c.c5}之前，新工作可以直接在 Codex CLI 開。`,
+    note: '（提示：規則尚未納入）',
+  },
+  cmd: { opus: '/model opus', sonnet: '/model sonnet' },
   // 今日可用預算：週剩 ÷ 剩餘天數；對照平均每天 100/7 ≈ 14%，差距在 avgTol 個百分點內算「約平均」
   budget: {
     avgTol: 1,
@@ -298,8 +338,9 @@ const ACTION = {
   groups: {
     open: ['Codex 可派', 'var(--codex)'], 'no-codex': ['不派 Codex', 'var(--claude)'], hold: ['非急件延後', 'url(#hatch)'],
   },
-  // Codex 等級門檻（顯示用，須與 bin/quota-mode.sh 的 LEFT_TIGHT／CODEX_DEFICIT／CODEX_RICH 預設值一致；tests/policy-test.sh 檢查）
-  thr: { leftTight: 15, codexDeficit: 25, codexRich: 15 },
+  // 門檻（顯示用，須與 bin/quota-mode.sh 的 LEFT_TIGHT／CODEX_DEFICIT／CODEX_RICH／BLOCK_5H／LOW_5H 預設值一致；tests/policy-test.sh 檢查）
+  // block5h／low5h 也決定現況圓環的 5h 顏色：剩 < block5h 紅、< low5h 黃；7d 圓環照等級：吃緊紅、超速黃
+  thr: { leftTight: 15, codexDeficit: 25, codexRich: 15, block5h: 10, low5h: 30 },
   error: {
     fetch: ['讀不到資料', '取不到 data/snapshot.json（網路斷線、檔案不存在或 GitHub Pages 尚未更新）。稍後重新整理。'],
     format: ['資料格式不對', 'snapshot.json 的內容不是預期的格式（可能是推送中斷或 snapshot.sh 改版）。'],
@@ -356,9 +397,65 @@ function renderAction(m, age) {
   }
   todo.push(['', ACTION.hub[m.hub] + (m.subagent ? `，subagent 用 ${m.subagent === 'opus' ? 'Opus' : 'Sonnet'}。` : '。')]);
   $('todo').replaceChildren(...todo.slice(0, 3).map(([k, t]) => el('li', { 'data-kind': k || 'note' }, t)));
-  const level = degraded ? 'crit' : todo.some(([k]) => k === 'crit') || gateOf(m) === 'hold' ? 'crit' : stale || todo.some(([k]) => k === 'warn' || k === 'card') ? 'warn' : 'ok';
+  renderNext(m);
+  // 左側色條＝最差狀態：5h 見底、延後、降級 → 紅；7d 吃緊／超速、5h 偏低、過期、用卷 → 黃
+  const sev = ['claude', 'codex'].map(p => sevOf(p, m));
+  const level = degraded || todo.some(([k]) => k === 'crit') || gateOf(m) === 'hold' || sev.some(s => s.five === 'crit') ? 'crit'
+    : stale || todo.some(([k]) => k === 'warn' || k === 'card') || sev.some(s => s.five === 'warn' || (s.week && s.week !== 'ok')) ? 'warn' : 'ok';
   $('action').dataset.level = level;
   $('action').classList.toggle('degraded', degraded);
+}
+
+// 嚴重度：5h 剩餘照 thr.block5h／low5h；7d 照等級（吃緊 crit、超速 warn）
+const left5 = p => { const w = snap[p]?.five; return w ? (w.resets_at && w.resets_at <= nowS() ? 100 : 100 - w.used) : null; };
+function sevOf(p, m) {
+  const l = left5(p), t = m[p];
+  return { five: l == null ? null : l < ACTION.thr.block5h ? 'crit' : l < ACTION.thr.low5h ? 'warn' : 'ok',
+    week: !snap[p] ? null : t === 'tight' ? 'crit' : t === 'lean' || t === 'unknown' ? 'warn' : 'ok' };
+}
+const SEV_COLOR = { ok: 'var(--good)', warn: 'var(--warning)', crit: 'var(--critical)' };
+const whenAt = t => `${new Date(t * 1000).toDateString() === new Date().toDateString() ? '今天' : md(t)} ${hm(t)}`;
+
+function nextTurn(m) {
+  const now = nowS(), ev = [], ov = m.override || '-', after = gateOf({ ...m, override: '-' });
+  if (/^(claude|codex|both)5h/.test(ov)) {
+    const ps = ov.startsWith('both') ? ['claude', 'codex'] : [ov.startsWith('claude') ? 'claude' : 'codex'];
+    const t = Math.max(...ps.map(p => snap[p]?.five?.resets_at || 0));
+    if (t > now) ev.push([t, ACTION.next.five(ps.map(p => NAME[p]).join(' 與 '), after !== gateOf(m) ? GATE[after][0] : '')]);
+  }
+  const resets = [];
+  for (const p of ['claude', 'codex']) {
+    const b = burnOf(p);
+    if (!b) continue;
+    if (b.proj?.tz > now) ev.push([b.proj.tz, ACTION.next.empty(NAME[p], `${md(b.c.R)} ${hm(b.c.R)}`)]);
+    const same = resets.find(r => Math.abs(r[0] - b.c.R) < 600);
+    same ? same[1].push(NAME[p]) : resets.push([b.c.R, [NAME[p]]]);
+  }
+  for (const [t, ns] of resets) ev.push([t, ACTION.next.reset(ns.join(' 與 '))]);
+  for (const c of liveCards()) ev.push([Date.parse(c.expires) / 1000, ACTION.next.card(NAME[c.provider] || c.provider)]);
+  return ev.sort((a, b) => a[0] - b[0])[0] || null;
+}
+function harnessHint(m) {
+  const codexOk = m.codex === 'rich' || m.codex === 'ok';
+  if (!codexOk) return '';
+  if (m.claude === 'tight' && m.hub === 'sonnet') return ACTION.harness.claudeTight;
+  if (m.override === 'claude5h' && (snap.claude?.five?.resets_at || 0) > nowS()) return ACTION.harness.claudeBlock(actionCtx());
+  return '';
+}
+function renderNext(m) {
+  const n = nextTurn(m);
+  $('next').replaceChildren(el('span', { class: 'k' }, ACTION.next.label),
+    n ? `約 ${whenAt(n[0])}（${fmtLeft(n[0] - nowS())}後）｜${n[1]}` : ACTION.next.none);
+  const h = harnessHint(m);
+  $('harness').hidden = !h;
+  $('harness').replaceChildren(...(h ? [el('span', { class: 'k' }, 'Harness'), h, el('span', { class: 'hint' }, ACTION.harness.note)] : []));
+  const cmd = ACTION.cmd[m.hub];
+  const btn = el('button', { class: 'cmd', type: 'button', 'data-copy': cmd, title: '點一下複製' }, cmd);
+  btn.addEventListener('click', () => navigator.clipboard?.writeText(cmd).then(() => {
+    btn.textContent = '已複製'; btn.classList.add('done');
+    setTimeout(() => { btn.textContent = cmd; btn.classList.remove('done'); }, 1500);
+  }).catch(() => {}));
+  $('cmds').replaceChildren(el('span', { class: 'k' }, 'Claude Code 主控'), btn, el('span', { class: 'hint' }, '點一下複製，貼到 Claude Code'));
 }
 
 function render() {
@@ -375,8 +472,8 @@ function render() {
   $('chips').replaceChildren(
     el('span', { class: 'chip' }, el('i', {}, '主控'), m.hub === 'opus' ? 'Opus 5.5' : 'Sonnet 5.5'),
     el('span', { class: 'chip' }, el('i', {}, 'subagent'), m.subagent === 'opus' ? 'Opus' : 'Sonnet'),
-    el('span', { class: 'chip' }, el('i', {}, 'Claude'), TIER[m.claude] || m.claude),
-    el('span', { class: 'chip' }, el('i', {}, 'Codex'), TIER[m.codex] || m.codex));
+    el('span', { class: 'chip' }, el('i', {}, 'Claude 7d'), TIER[m.claude] || m.claude),
+    el('span', { class: 'chip' }, el('i', {}, 'Codex 7d'), TIER[m.codex] || m.codex));
 
   const prov = (key, name, color) => {
     const d = snap[key];
@@ -461,20 +558,35 @@ function renderBudget() {
         b = ACTION.budget.perDay(v < 10 ? v.toFixed(1) : Math.round(v), Math.round(left), `${days.toFixed(1)} 天`, Math.abs(d) <= ACTION.budget.avgTol ? 'avg' : d > 0 ? 'loose' : 'tight');
       }
     }
+    const s = sevOf(p, snap.mode), d = snap[p], c5 = d?.five?.resets_at;
     return el('div', { class: 'budget-tile', 'data-p': p },
-      el('div', { class: 'bt-name' }, el('span', { class: 'dot', style: `background:var(--${p})` }), `${NAME[p]} 今天可用`),
-      el('p', { class: 'bt-num' }, b.num, el('small', {}, b.unit)), el('p', { class: 'bt-sub' }, b.sub));
+      el('div', { class: 'bt-name' }, el('span', { class: 'dot', style: `background:var(--${p})` }), NAME[p]),
+      ring('5h 剩', left5(p), s.five, c5 && c5 > now ? `${hm(c5)} 恢復` : '已恢復'),
+      ring('週剩', d && c ? 100 - c.used : null, s.week, c ? `${md(c.R)} 重置` : ''),
+      el('div', { class: 'bt-day' }, el('p', { class: 'bt-label' }, '今天可用'),
+        el('p', { class: 'bt-num' }, b.num, el('small', {}, b.unit)), el('p', { class: 'bt-sub' }, b.sub)));
   });
   $('budget').replaceChildren(...tiles);
+}
+// 剩餘量圓環：弧長＝剩 %，顏色＝嚴重度（不是廠商色，廠商看名稱旁的圓點）
+function ring(label, left, sev, sub) {
+  const ns = 'http://www.w3.org/2000/svg', sv = (tag, a) => { const e = document.createElementNS(ns, tag); for (const q in a) e.setAttribute(q, a[q]); return e; };
+  const r = 23, C = 2 * Math.PI * r, v = left == null ? null : Math.max(0, Math.min(100, left));
+  const svg = sv('svg', { viewBox: '0 0 56 56', 'aria-hidden': 'true' });
+  svg.append(sv('circle', { cx: 28, cy: 28, r, fill: 'none', stroke: 'var(--grid)', 'stroke-width': 6 }));
+  if (v) svg.append(sv('circle', { class: 'arc', cx: 28, cy: 28, r, fill: 'none', stroke: SEV_COLOR[sev] || 'var(--muted)', 'stroke-width': 6, 'stroke-linecap': v < 100 ? 'round' : 'butt',
+    'stroke-dasharray': `${(C * v / 100).toFixed(2)} ${C.toFixed(2)}`, transform: 'rotate(-90 28 28)' }));
+  const tx = sv('text', { x: 28, y: 32.5, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700, fill: 'var(--ink)' });
+  tx.textContent = v == null ? '–' : `${Math.round(v)}%`; svg.append(tx);
+  return el('div', { class: 'ring', 'data-sev': sev || 'none', role: 'img', 'aria-label': `${label} ${v == null ? '不明' : Math.round(v) + '%'}，${sub}` }, svg, el('b', {}, label), el('span', {}, sub));
 }
 
 // 週用量燃燒曲線：x＝本週期 7 天、y＝週已用 %；虛線＝照週期進度（對角線），點線＝照目前平均速度推估到週期結束
 function drawBurns() { document.querySelectorAll('.burn-box').forEach(box => drawBurn(box, box.dataset.p, box.dataset.color)); }
-function drawBurn(box, p, color) {
-  box.querySelector('svg')?.remove();
-  const note = box.parentElement.querySelector('.burn-note'), tip = box.querySelector('.tip');
+// 本週期的週用量點（歷史＋目前讀數）與照目前平均速度的推估：proj.uEnd＝週期結束時已用 %，proj.tz＝見底時間（不會見底為 null）
+function burnOf(p) {
   const c = cycleOf(p), now = nowS(), k = p === 'claude' ? 'c' : 'x';
-  if (!c) { note.textContent = '讀不到週 reset 時間'; return; }
+  if (!c) return null;
   const seen = new Map();
   for (const r of hist) {
     if (r.t < c.S || r.t > now + 60 || r[k + '7'] == null) continue;
@@ -483,6 +595,30 @@ function drawBurn(box, p, color) {
   }
   if (snap.generated_at >= c.S) seen.set(snap.generated_at, c.used);
   const pts = [...seen].sort((a, b) => a[0] - b[0]);
+  let start = c.S;
+  for (const card of snap.cards || []) {
+    const usedAt = card.provider === p && card.used_at ? Date.parse(card.used_at) / 1000 : NaN;
+    if (usedAt > start && usedAt <= now) start = usedAt;
+  }
+  const afterCard = start > c.S;
+  let proj = null;
+  if (pts.length) {
+    const [tl, ul] = pts[pts.length - 1];
+    // 用卷只歸零、不重開週期：同 quota-mode.sh --detail，最後一次用卷後超過 1h 才估；未用卷保留原門檻。
+    const elapsed = tl - start;
+    if ((afterCard ? elapsed > 3600 : elapsed >= 0.05 * WEEK) && ul > 0) {
+      const slope = ul / elapsed, uEnd = ul + slope * (c.R - tl);
+      proj = { tl, ul, uEnd, tz: uEnd > 100 ? tl + (100 - ul) / slope : null };
+    }
+  }
+  return { c, pts, proj, afterCard };
+}
+function drawBurn(box, p, color) {
+  box.querySelector('svg')?.remove();
+  const note = box.parentElement.querySelector('.burn-note'), tip = box.querySelector('.tip');
+  const b = burnOf(p), now = nowS();
+  if (!b) { note.textContent = '讀不到週 reset 時間'; return; }
+  const { c, pts } = b;
   const W = box.clientWidth || 300, H = 150, L = 34, Rm = 12, T = 8, B = 20;
   const x = t => L + (W - L - Rm) * (t - c.S) / WEEK, y = v => T + (H - T - B) * (100 - Math.min(100, v)) / 100;
   const ns = 'http://www.w3.org/2000/svg', sv = (tag, a) => { const e = document.createElementNS(ns, tag); for (const q in a) e.setAttribute(q, a[q]); return e; };
@@ -496,21 +632,12 @@ function drawBurn(box, p, color) {
   svg.append(sv('line', { class: 'pace', x1: x(c.S), y1: y(0), x2: x(c.R), y2: y(100), stroke: 'var(--muted)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }));
   const nowX = sv('line', { x1: x(Math.min(now, c.R)), x2: x(Math.min(now, c.R)), y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1 });
   svg.append(nowX);
-  let start = c.S;
-  for (const card of snap.cards || []) {
-    const usedAt = card.provider === p && card.used_at ? Date.parse(card.used_at) / 1000 : NaN;
-    if (usedAt > start && usedAt <= now) start = usedAt;
-  }
-  const afterCard = start > c.S;
-  let msg = afterCard ? '用卷後資料不足，還不夠推估。' : '週期剛開始，資料還不夠推估。', proj = 'none';
+  let msg = b.afterCard ? '用卷後資料不足，還不夠推估。' : '週期剛開始，資料還不夠推估。', proj = 'none';
   if (pts.length) {
     const [tl, ul] = pts[pts.length - 1];
-    // 用卷只歸零、不重開週期：同 quota-mode.sh --detail，最後一次用卷後超過 1h 才估；未用卷保留原門檻。
-    const elapsed = tl - start;
-    if ((afterCard ? elapsed > 3600 : elapsed >= 0.05 * WEEK) && ul > 0) {
-      const slope = ul / elapsed, uEnd = ul + slope * (c.R - tl);
-      if (uEnd > 100) {
-        const tz = tl + (100 - ul) / slope;
+    if (b.proj) {
+      const { uEnd, tz } = b.proj;
+      if (tz) {
         svg.append(sv('path', { class: 'proj', d: `M${x(tl).toFixed(1)} ${y(ul).toFixed(1)}L${x(tz).toFixed(1)} ${y(100).toFixed(1)}`, stroke: color, 'stroke-width': 2, 'stroke-dasharray': '1 4', 'stroke-linecap': 'round', fill: 'none' }));
         msg = `照目前速度約 ${md(tz)} ${hm(tz)} 見底（週期 ${md(c.R)} ${hm(c.R)} 才重置）。`; proj = 'empty';
       } else {
@@ -605,6 +732,7 @@ function renderReserves() {
     ...(snap.cards || []).map(c => ({ kind: 'card', p: c.provider, t: Date.parse(c.expires) / 1000, used: !!c.used_at, label: `${NAME[c.provider] || c.provider} 重置卷` })),
     ...(snap.credits || []).map(c => ({ kind: 'credit', p: c.provider, t: Date.parse(c.expires) / 1000, used: false, label: `雲端點數 US$${c.usd_left} / ${c.usd_total}` })),
   ].filter(i => Number.isFinite(i.t)).sort((a, b) => a.t - b.t);
+  $('lower').classList.toggle('solo', !items.length);
   if (!items.length) return $('reserves').replaceChildren(el('p', { class: 'empty' }, '沒有登錄的重置卷或點數'));
   const t0 = Math.min(now - 86400, ...items.map(i => i.t)), t1 = Math.max(now + 7 * 86400, ...items.map(i => i.t)) + 86400;
   const pct = t => (100 * (t - t0) / (t1 - t0)).toFixed(2) + '%';
@@ -651,6 +779,18 @@ function drawTrend() {
   }
   const days = new Set();
   for (const p of pts) { const d = new Date(p.t * 1000); const key = d.toDateString(); if (!days.has(key) && d.getHours() < 2) { days.add(key); const tx = s('text', { x: x(p.t), y: DATE_Y, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = `${d.getMonth() + 1}/${d.getDate()}`; svg.append(tx); } }
+  // 週期重置：記錄的週 reset 時間往後跳，或（舊資料沒有 cr／xr 時）週已用驟降 ≥ 20 點；盈餘線在這裡斷崖是正常的
+  const resets = s('g', { class: 'resets' });
+  pts.forEach((p, i) => {
+    const prev = pts[i - 1];
+    if (!prev) return;
+    const who = [['c', 'Claude'], ['x', 'Codex']].filter(([k]) => p[k + 'r'] != null && prev[k + 'r'] != null ? p[k + 'r'] - prev[k + 'r'] > 3600 : prev[k + '7'] - p[k + '7'] >= 20).map(([, n]) => n);
+    if (!who.length) return;
+    const gx = x(p.t), col = who.length > 1 ? 'var(--ink-2)' : who[0] === 'Claude' ? 'var(--claude)' : 'var(--codex)';
+    resets.append(s('line', { class: 'reset', x1: gx, x2: gx, y1: T, y2: PB, stroke: col, 'stroke-width': 1, 'stroke-dasharray': '3 3' }));
+    const tx = s('text', { x: gx + 4, y: T + 10, 'font-size': 10, fill: col }); tx.textContent = `${who.join('＋')} 週重置`; resets.append(tx);
+  });
+  svg.append(resets);
   const series = [['cs', 'var(--claude)', 'Claude'], ['xs', 'var(--codex)', 'Codex']];
   for (const [k, c, name] of series) {
     const seg = pts.filter(p => p[k] != null);
