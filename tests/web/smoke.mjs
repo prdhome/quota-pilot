@@ -154,6 +154,34 @@ for (const name of names) {
   }
 }
 
+// --- 7 天趨勢的文字避讓：重現「兩次重置相隔很近＋右緣重置＋兩條線尾數值接近（-7／-9）」，檢查標籤互不重疊、不出圖 ---
+for (const vp of VIEWPORTS) {
+  const now = Math.floor(Date.now() / 1000), D = 86400, rows = [];
+  const cAt = now - 1.3 * D, xAt = [now - 1.1 * D, now - 0.05 * D];          // Claude 與 Codex 重置只差 ~5 小時；Codex 另一次貼近右緣
+  for (let t = now - 7 * D; t <= now; t += 1800) {
+    const xr = now + 6 * D + xAt.filter(a => t >= a).length * D;
+    rows.push({ t, mode: 6, ct: 'ok', xt: 'ok', override: '-', card: '-', cs: t >= now - 0.5 * D ? -9 : 5, xs: t >= now - 0.5 * D ? -7 : 3,
+      c5: 10, c7: 40, x5: 10, x7: 40, cr: now + 3 * D + (t >= cAt ? D : 0), xr });
+  }
+  const body = rows.map(r => JSON.stringify(r)).join('\n') + '\n';
+  const { page, errors } = await open(`${base}/${names[0]}/`, vp, page => page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body })));
+  const r = await page.evaluate(() => {
+    const svg = document.querySelector('#chart svg'), W = svg.getBoundingClientRect();
+    const boxes = [...svg.querySelectorAll('text.reset-label, text.end-label')].map(e => { const b = e.getBoundingClientRect(); return { t: e.textContent, l: b.left - W.left, r: b.right - W.left, top: b.top, bot: b.bottom }; });
+    const hit = [];
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i], b = boxes[j];
+      if (a.l < b.r - 1 && b.l < a.r - 1 && a.top < b.bot - 1 && b.top < a.bot - 1) hit.push(`${a.t} × ${b.t}`);
+    }
+    const dates = [...svg.querySelectorAll('text.date')].map(e => e.getBoundingClientRect());
+    const dateHit = dates.some((b, i) => i && b.left < dates[i - 1].right + 2);
+    return { n: boxes.length, labels: boxes.map(b => b.t), hit, out: boxes.filter(b => b.l < -1 || b.r > W.width + 1).map(b => b.t), dates: dates.length, dateHit };
+  });
+  check(`趨勢文字避讓/${vp.tag}：3 個重置標籤＋2 個線尾標籤互不重疊、不出圖；日期不擠在一起`, errors.length === 0 && r.n === 5 && !r.hit.length && !r.out.length && r.dates >= 3 && !r.dateHit, JSON.stringify({ errors, ...r }));
+  if (SHOTS) await page.locator('#chart').screenshot({ path: `${SHOTS}/trend-labels-${vp.tag}.png` });
+  await page.close();
+}
+
 // --- 三種失敗狀態分開顯示（用第一組情境，攔截請求製造失敗）---
 const errCase = async (label, setup, wantState, wantTitle, extra) => {
   const { page, errors } = await open(`${base}/${names[0]}/index.html`, VIEWPORTS[0], setup);
