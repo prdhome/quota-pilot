@@ -760,7 +760,11 @@ function drawTrend() {
   if (pts.length < 2) { if (!box.querySelector('.empty')) box.prepend(el('p', { class: 'empty' }, '歷史資料累積中（每 30 分鐘一筆）')); $('table').replaceChildren(); return; }
   box.querySelector('.empty')?.remove();
   // 版面：上方折線區 T..PB，下方日期、覆寫／用卷標記、route 時間帶（共用同一條 x 軸）
-  const W = box.clientWidth || 600, H = 262, L = 40, R = 56, T = 12, PB = 196, DATE_Y = 212, MARK_Y = 228, SY = 236, SH = 16;
+  // 右邊留白依線尾標籤（「Claude +36」）估寬決定，避免標籤超出圖外
+  const textW = (t, fs) => [...t].reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2e80 ? fs : fs * 0.6), 0);
+  const endText = (k, name) => { const v = pts.filter(p => p[k] != null).pop()?.[k]; return v == null ? '' : `${name} ${v >= 0 ? '+' : ''}${Math.round(v)}`; };
+  const W = box.clientWidth || 600, H = 262, L = 40, T = 12, PB = 196, DATE_Y = 212, MARK_Y = 228, SY = 236, SH = 16;
+  const R = Math.max(56, 14 + Math.max(...[['cs', 'Claude'], ['xs', 'Codex']].map(([k, n]) => textW(endText(k, n), 12))));
   const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
   const vals = pts.flatMap(p => [p.cs, p.xs]).filter(v => v != null);
   let lo = Math.min(-30, ...vals), hi = Math.max(30, ...vals);
@@ -778,9 +782,12 @@ function drawTrend() {
     if (v % 20 === 0 || v === 0) { const tx = s('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = (v > 0 ? '+' : '') + v; svg.append(tx); }
   }
   const days = new Set();
-  for (const p of pts) { const d = new Date(p.t * 1000); const key = d.toDateString(); if (!days.has(key) && d.getHours() < 2) { days.add(key); const tx = s('text', { x: x(p.t), y: DATE_Y, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = `${d.getMonth() + 1}/${d.getDate()}`; svg.append(tx); } }
+  let lastDateX = -Infinity;                       // 窄螢幕上日期會擠在一起：跟前一個相距不到 36px 就跳過
+  for (const p of pts) { const d = new Date(p.t * 1000); const key = d.toDateString(); if (!days.has(key) && d.getHours() < 2) { days.add(key); if (x(p.t) - lastDateX < 36) continue; lastDateX = x(p.t); const tx = s('text', { class: 'date', x: x(p.t), y: DATE_Y, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = `${d.getMonth() + 1}/${d.getDate()}`; svg.append(tx); } }
   // 週期重置：記錄的週 reset 時間往後跳，或（舊資料沒有 cr／xr 時）週已用驟降 ≥ 20 點；盈餘線在這裡斷崖是正常的
   const resets = s('g', { class: 'resets' });
+  // 標籤避讓：用 textW 估寬，放進第一個不撞的列（最多 3 列）；靠右邊放不下就改放在虛線左側
+  const rowEnd = [-Infinity, -Infinity, -Infinity];
   pts.forEach((p, i) => {
     const prev = pts[i - 1];
     if (!prev) return;
@@ -788,18 +795,32 @@ function drawTrend() {
     if (!who.length) return;
     const gx = x(p.t), col = who.length > 1 ? 'var(--ink-2)' : who[0] === 'Claude' ? 'var(--claude)' : 'var(--codex)';
     resets.append(s('line', { class: 'reset', x1: gx, x2: gx, y1: T, y2: PB, stroke: col, 'stroke-width': 1, 'stroke-dasharray': '3 3' }));
-    const tx = s('text', { x: gx + 4, y: T + 10, 'font-size': 10, fill: col }); tx.textContent = `${who.join('＋')} 週重置`; resets.append(tx);
+    const label = `${who.join('＋')} 重置`, w = textW(label, 10), left = gx + 4 + w > W - R;
+    const x0 = left ? gx - 4 - w : gx + 4;
+    let row = rowEnd.findIndex(e => e + 6 <= x0);
+    if (row < 0) row = rowEnd.indexOf(Math.min(...rowEnd));
+    rowEnd[row] = x0 + w;
+    const tx = s('text', { class: 'reset-label', x: left ? gx - 4 : gx + 4, y: T + 10 + row * 13, 'text-anchor': left ? 'end' : 'start', 'font-size': 10, fill: col,
+      stroke: 'var(--surface)', 'stroke-width': 3, 'stroke-linejoin': 'round', 'paint-order': 'stroke' });
+    tx.textContent = label; resets.append(tx);
   });
   svg.append(resets);
-  const series = [['cs', 'var(--claude)', 'Claude'], ['xs', 'var(--codex)', 'Codex']];
+  const series = [['cs', 'var(--claude)', 'Claude'], ['xs', 'var(--codex)', 'Codex']], ends = [];
   for (const [k, c, name] of series) {
     const seg = pts.filter(p => p[k] != null);
     if (!seg.length) continue;
     svg.append(s('path', { d: seg.map((p, i) => (i ? 'L' : 'M') + x(p.t).toFixed(1) + ' ' + y(p[k]).toFixed(1)).join(''), fill: 'none', stroke: c, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
     const last = seg[seg.length - 1];
     svg.append(s('circle', { cx: x(last.t), cy: y(last[k]), r: 4, fill: c, stroke: 'var(--surface)', 'stroke-width': 2 }));
-    const tx = s('text', { x: x(last.t) + 8, y: y(last[k]) + 4, 'font-size': 12, fill: 'var(--ink-2)' }); tx.textContent = `${name} ${last[k] >= 0 ? '+' : ''}${Math.round(last[k])}`; svg.append(tx);
+    ends.push({ x: x(last.t) + 8, y: y(last[k]) + 4, text: endText(k, name) });
   }
+  // 線尾標籤：數值接近時兩行會疊在一起，依 y 排序後至少相隔 14px，並夾在圖區內
+  ends.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + 14);
+  const over = ends.length ? ends[ends.length - 1].y - (PB + 4) : 0;
+  if (over > 0) ends.forEach(e => { e.y -= over; });
+  for (let i = ends.length - 2; i >= 0; i--) ends[i].y = Math.min(ends[i].y, ends[i + 1].y - 14);
+  for (const e of ends) { const tx = s('text', { class: 'end-label', x: e.x, y: e.y, 'font-size': 12, fill: 'var(--ink-2)' }); tx.textContent = e.text; svg.append(tx); }
   const grp = gateOf;
   const strip = s('g', { class: 'strip' });
   for (let i = 0; i < pts.length - 1; i++) {
