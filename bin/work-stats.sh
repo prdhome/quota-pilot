@@ -6,7 +6,7 @@
 ORCH="${QP_ORCH:-$HOME/Documents/orchestrator}"
 [ -d "$ORCH/tasks" ] || { echo "work-stats: 找不到 $ORCH/tasks" >&2; exit 1; }
 python3 -I - "$ORCH/tasks" <<'PY'
-import json, os, subprocess, sys, time
+import json, os, re, subprocess, sys, time
 from datetime import datetime, timezone
 t = sys.argv[1]; now = time.time(); cut = now - 7 * 86400
 def rows(name, ok_col):
@@ -33,7 +33,7 @@ try:
     out = r.stdout
     if r.returncode != 0 or not out.startswith("# 週回顧"):  # 失敗就留 null，頁面顯示「還沒接上」，不冒充 0
         raise RuntimeError("weekly-review failed")
-    rv = {"verdicts": sum(l.startswith("☐") and " 裁決 " in l for l in out.splitlines()), "memory": sum(l.startswith("☐") and " memory " in l for l in out.splitlines())}  # 含覆核／格式錯誤／清理
+    rv = {k: sum(bool(re.match(r"☐ (?:覆核 |格式錯誤 |清理 )?" + w + " ", l)) for l in out.splitlines()) for k, w in (("verdicts", "裁決"), ("memory", "memory"))}  # 含覆核／格式錯誤／清理；只看類別詞，scope 文字不算
 except Exception:
     pass
 print(json.dumps({"generated_at": round(now), "direct": rows("direct-log.tsv", 5), "dispatch": first_attempt(),
