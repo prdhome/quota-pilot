@@ -73,6 +73,11 @@ for (const name of names) {
         strip: q('#chart .strip rect').length, legendRoutes: q('#route-legend > span').length,
         shares: [...q('#matrix .cell')].map(e => +e.dataset.share || 0), onShare: +(document.querySelector('#matrix .cell.on')?.dataset.share || 0),
         reasons: [...q('#reasons li')].map(e => e.textContent),
+        rings: [...q('#budget .ring')].map(e => ({ sev: e.dataset.sev, label: e.getAttribute('aria-label') })),
+        next: $('next').textContent, harness: vis('harness') ? $('harness').textContent : '',
+        cmd: document.querySelector('#cmds .cmd')?.dataset.copy,
+        chipText: [...q('#chips .chip')].map(e => e.textContent),
+                solo: $('lower').classList.contains('solo'), resets: q('#chart .resets line.reset').length,
       };
     });
     const want = sc.expect.mode, providers = ['claude', 'codex'].filter(p => sc[p]).length;
@@ -127,6 +132,23 @@ for (const name of names) {
     check(`${t}：主控說明${cardLifted ? '寫出「有卷先用卷不降級」' : '不誤報用卷'}`, cardLifted ? hubWhy.includes('先用卷') : !hubWhy.includes('先用卷'), JSON.stringify({ hubWhy, claude: r.reasons[0] }));
     if (name === 'reserve-card') check(`${t}：reserve-card 情境走到「Claude 吃緊＋有卷」`, cardLifted, r.reasons[0]);
     check(`${t}：「為什麼是這個模式」逐步說明（Claude／Codex／矩陣／覆寫／主控）`, r.reasons.length >= 4 && wantWhy.every(Boolean), JSON.stringify({ reasons: r.reasons, wantWhy }));
+    // --- 第二批：現況圓環、下一個轉折、harness 提示、可複製指令、徽章／矩陣一致、卷區塊收合、週期重置標記 ---
+    const sev5 = p => { const l = 100 - sc[p].five_used; return l < 10 ? 'crit' : l < 30 ? 'warn' : 'ok'; };
+    const sev7 = p => ({ tight: 'crit', lean: 'warn', unknown: 'warn' })[want[p]] || 'ok';
+    const wantRings = ['claude', 'codex'].flatMap(p => sc[p] ? [sev5(p), sev7(p)] : []);
+    check(`${t}：現況圓環 ${wantRings.length} 個、顏色照嚴重度 ${JSON.stringify(wantRings)}`, r.rings.length === 4 && JSON.stringify(r.rings.map(x => x.sev).filter(x => x !== 'none')) === JSON.stringify(wantRings), JSON.stringify(r.rings));
+    const five = ['claude', 'codex'].filter(p => sc[p]).map(sev5);
+    const gate = want.override === 'both5h' || (want.claude === 'tight' && want.codex === 'tight') ? 'hold' : 'open';
+    const wantLevel = degraded || gate === 'hold' || five.includes('crit') ? 'crit'
+      : stale || wantRings.some(x => x !== 'ok') || want.card !== '-' || want.override.endsWith('5h-low') ? 'warn' : 'ok';
+    check(`${t}：行動卡色條 ${wantLevel}`, r.level === wantLevel, JSON.stringify({ level: r.level, wantLevel }));
+    check(`${t}：「下一個轉折」有時間與事件`, /^下一個轉折約 .+（.+後）｜.+/.test(r.next) && (!/^(claude|codex|both)5h$/.test(want.override) || r.next.includes('5h 恢復')), r.next);
+    const wantHarness = (want.claude === 'tight' && want.hub === 'sonnet' || want.override === 'claude5h') && ['rich', 'ok'].includes(want.codex);
+    check(`${t}：Harness 提示${wantHarness ? '有（Codex CLI）' : '無'}`, wantHarness ? r.harness.includes('Codex CLI') && r.harness.includes('規則尚未納入') : !r.harness, r.harness);
+    check(`${t}：可複製指令 /model ${want.hub}`, r.cmd === `/model ${want.hub}`, r.cmd);
+    check(`${t}：chip 標明 7d`, r.chipText.filter(x => x.includes('7d')).length === 2, JSON.stringify(r.chipText));
+    check(`${t}：卷區塊${items ? '並排' : '收成一行'}`, r.solo === !items, String(r.solo));
+    check(`${t}：趨勢圖標出週期重置`, r.resets >= 1, String(r.resets));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
     await page.close();
   }
