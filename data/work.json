@@ -1,1 +1,1 @@
-{"generated_at": 1793148703, "direct": {"n": 116, "ok": 103}, "dispatch": {"n": 11, "ok": 9, "basis": "first-attempt-per-task"}, "active": 0, "review": {"verdicts": 2, "memory": 0}}
+{"generated_at": 1793150508, "direct": {"n": 112, "ok": 100}, "dispatch": {"n": 13, "ok": 11, "basis": "first-attempt-per-task"}, "active": 0, "review": {"verdicts": 2, "memory": 0}}
