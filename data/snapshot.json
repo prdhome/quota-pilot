@@ -1,65 +1,64 @@
 {
- "generated_at": 1793284134,
+ "generated_at": 1793285940,
  "mode": {
-  "mode": "5",
+  "mode": "6",
   "hub": "opus",
   "route": "delegate",
   "subagent": "sonnet",
   "claude": "ok",
-  "codex": "rich",
-  "override": "-",
+  "codex": "ok",
+  "override": "claude5h-low",
   "card": "-"
  },
  "explain": [
-  "claude: ok — week elapsed 87% used 80% surplus 7 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 37%",
-  "codex:  rich — 5h left 45% week left 63% surplus -21",
-  "matrix: (ok,rich) → mode 5; override - → route delegate",
-  "note:   codex lean → rich（有 2 張卷）"
+  "claude: ok — week elapsed 87% used 81% surplus 6 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 29%",
+  "codex:  ok — 5h left 100% week left 100% surplus 0",
+  "matrix: (ok,ok) → mode 6; override claude5h-low → route delegate"
  ],
  "detail": {
   "claude_raw": "ok",
   "claude_policy": "ok",
   "claude_fresh": "fresh",
-  "claude_left5": "37",
-  "claude_left7": "20",
-  "claude_surplus": "7",
-  "claude_reset_h": "22",
-  "claude_proj7": "92",
-  "claude_runway_h": "37",
+  "claude_left5": "29",
+  "claude_left7": "19",
+  "claude_surplus": "6",
+  "claude_reset_h": "21",
+  "claude_proj7": "93",
+  "claude_runway_h": "34",
   "claude_cards": "0",
-  "codex_raw": "lean",
-  "codex_policy": "rich",
+  "codex_raw": "ok",
+  "codex_policy": "ok",
   "codex_fresh": "fresh",
-  "codex_left5": "45",
-  "codex_left7": "63",
-  "codex_surplus": "-21",
-  "codex_reset_h": "141",
-  "codex_proj7": "232",
-  "codex_runway_h": "46",
-  "codex_cards": "2"
+  "codex_left5": "100",
+  "codex_left7": "100",
+  "codex_surplus": "0",
+  "codex_reset_h": "168",
+  "codex_proj7": "-",
+  "codex_runway_h": "-",
+  "codex_cards": "1"
  },
  "claude": {
   "five": {
-   "used": 63.0,
+   "used": 71.0,
    "resets_at": 1793287200.0
   },
   "week": {
-   "used": 80.0,
+   "used": 81.0,
    "resets_at": 1793361600.0
   },
-  "updated_at": 1793284133,
-  "surplus": 7.2
+  "updated_at": 1793285918,
+  "surplus": 6.5
  },
  "codex": {
   "five": {
-   "used": 55.0,
-   "resets_at": 1793291324.0
+   "used": 0.0,
+   "resets_at": 1793303716.0
   },
   "week": {
-   "used": 37.0,
-   "resets_at": 1793792449.0
+   "used": 0.0,
+   "resets_at": 1793890516.0
   },
-  "surplus": -21.0
+  "surplus": 0.0
  },
  "cards": [
   {
@@ -75,7 +74,7 @@
   {
    "provider": "codex",
    "expires": "2026-10-30T02:19:00+08:00",
-   "used_at": null
+   "used_at": "2026-10-29T22:54:44+08:00"
   },
   {
    "provider": "codex",
