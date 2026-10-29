@@ -20,7 +20,7 @@ if isinstance(m, dict):
     need(m.get("mode", "").isdigit() and 1 <= int(m["mode"]) <= 12, f"mode.mode {m.get('mode')!r}")
     need(m.get("hub") in ("opus", "sonnet") and m.get("subagent") in ("opus", "sonnet"), f"hub/subagent {m.get('hub')}/{m.get('subagent')}")
     need(m.get("route") in ("delegate", "cost", "direct", "no-codex", "small-only", "hold"), f"route {m.get('route')!r}")
-    need(m.get("claude") in ("rich", "ok", "tight") and m.get("codex") in ("rich", "ok", "lean", "tight", "unknown"), f"tiers {m.get('claude')}/{m.get('codex')}")
+    need(m.get("claude") in ("rich", "ok", "tight", "unknown") and m.get("codex") in ("rich", "ok", "lean", "tight", "unknown"), f"tiers {m.get('claude')}/{m.get('codex')}")
 need(isinstance(snap.get("explain"), list) and snap["explain"] and all(isinstance(s, str) for s in snap["explain"]), "explain 應為非空字串陣列")
 
 def window(w, where):

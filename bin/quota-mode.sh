@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # quota-mode.sh — Claude＋Codex 額度 → 調度模式（ROUTER.md「額度調節」；2026-10-15 矩陣版）。不耗 Claude token。
-# 輸出一行：mode=<1-12> hub=<opus|sonnet> route=<…> subagent=<opus|sonnet> claude=<rich|ok|tight> codex=<rich|ok|lean|tight|unknown> override=<…> card=<…>
+# 輸出一行：hub=<opus|sonnet> subagent=<opus|sonnet> claude=<rich|ok|tight|unknown> codex=<rich|ok|lean|tight|unknown> override=<…> card=<…>
 #   7d 決定模式（Claude 3 級 × Codex 4 級 = 12 格），5h 只做暫時覆寫。判斷順序：
 #   1. 任一邊 5h 剩 < BLOCK_5H → 該邊暫停（override=claude5h|codex5h|both5h）
 #   2. 7d 吃緊 → 矩陣 ④⑧⑨–⑫
 #   3. 5h 剩 < LOW_5H → 新任務暫轉另一邊（override=claude5h-low|codex5h-low；Codex lean 時不轉給它）
 #   4. 其餘照矩陣；5. 週末清倉：某邊 7d 在 24h 內 reset 且盈餘 ≥ WEEKEND → 放寬那一邊（override=weekend-*）
-#   route：delegate 傾向派工｜cost 照成本判準｜direct 傾向直做｜no-codex 不派 Codex｜small-only 只直做小任務、大的等 reset｜hold 非急件延後
+#   mode／route 只在內部推 override，不再輸出（2026-10-29 F；route 2026-10-21 定案不用，--explain 仍印）：delegate 傾向派工｜cost 照成本判準｜direct 傾向直做｜no-codex 不派 Codex｜small-only 只直做小任務、大的等 reset｜hold 非急件延後
 #   Claude：rich = 週盈餘達 pick-model.sh 門檻（只看 7d；5h 交給覆寫層，hub 欄才另看 5h）；tight = 週盈餘 ≤ −CLAUDE_DEFICIT 或週剩 < LEFT_TIGHT；其餘 ok。
 #   Codex ：tight = 週剩 < LEFT_TIGHT 或週盈餘 ≤ −CODEX_DEFICIT；rich = 週盈餘 ≥ CODEX_RICH；lean = 週盈餘 < 0；其餘 ok；讀不到 = unknown（矩陣當 lean：不因額度不明而把工作推給 Codex；2026-10-15）。
 #   subagent（只給非視覺 subagent；視覺建置／frontend-ux 固定 opus 不看此欄）：預設 sonnet，override=weekend-claude|weekend-both 才 opus（2026-10-20）。
 #   重置卷（bin/quota-reserve.sh，~/.claude/state/quota-reserves.json）：該邊有未用、未過期的卷 → lean／tight 視同 ok（hub 不降 sonnet）；≥2 張 → ok／lean 視同 rich；
 #   card 欄提示用卷：<邊>:use = 週剩 ≤ CARD_USE_LEFT 且自然 reset > 24h；<邊>:expiring = 最早到期卷 48h 內到期、週已用 ≥ 50% 且自然 reset > 24h。用卷由使用者手動按，按完跑 `quota-reserve.sh use <邊>`。
-# `--detail`：第一行不變，另印第二行 `detail: …`（raw＝未計卷的原始級別、policy＝含卷後；fresh＝fresh|stale-partial|stale|missing；
+# `--detail`：第一行不變，另印第二行 `detail: mode=<1-12> route=<…> …`（mode／route 只給 quota-pilot 儀表板畫矩陣，2026-10-29；raw＝未計卷的原始級別、policy＝含卷後；fresh＝fresh|stale-partial|stale|missing；
 #   left5／left7／surplus／reset_h；proj7＝照目前週速率到 reset 時的預估週用量%；runway_h＝照週速率用完週額度的小時數；本週期用過卷則速率從 used_at 起算、不足 1h 不估；cards＝未用卷數）。
-#   Claude 讀不到時 policy 仍是 ok（舊行為），raw=unknown 提醒別當充足。
+#   Claude 讀不到時輸出 claude=unknown（policy 同），矩陣仍當 ok、route 不變——只是不再顯示成 ok 被誤讀為充足（2026-10-24）。
 # `--explain` 附依據到 stderr。測試用：`--codex-tsv "<5h> <7d> <5h_reset> <7d_reset>"`、`--now EPOCH`、其餘參數（--state、--current）轉給 pick-model.sh。
 LEFT_TIGHT="${LEFT_TIGHT:-15}"
 CLAUDE_DEFICIT="${CLAUDE_DEFICIT:-15}"
@@ -80,13 +80,13 @@ def card_check(p, s, tier):
     if new != tier: card_notes.append(f"{p} {tier} → {new}（有 {len(exp)} 張卷）")
     return new
 claude_raw, codex_raw = (claude if c else "unknown"), codex
-claude = card_check("claude", c, claude)
+claude = card_check("claude", c, claude) if c else "unknown"
 codex = card_check("codex", x, codex)
 if hub == "sonnet" and claude != "tight" and live("claude"): hub = "opus"
 M = {("rich", "rich"): (1, "delegate"), ("rich", "ok"): (2, "cost"), ("rich", "lean"): (3, "direct"), ("rich", "tight"): (4, "no-codex"),
      ("ok", "rich"): (5, "delegate"), ("ok", "ok"): (6, "cost"), ("ok", "lean"): (7, "cost"), ("ok", "tight"): (8, "small-only"),
      ("tight", "rich"): (9, "delegate"), ("tight", "ok"): (10, "delegate"), ("tight", "lean"): (11, "hold"), ("tight", "tight"): (12, "hold")}
-mode, route = M[(claude, "lean" if codex == "unknown" else codex)]
+mode, route = M[("ok" if claude == "unknown" else claude, "lean" if codex == "unknown" else codex)]
 c5 = c["left5"] if c else 100.0
 x5 = x["left5"] if x else 100.0
 c_up, x_up = claude != "tight", codex != "tight"
@@ -112,7 +112,7 @@ subagent = "opus" if ov in ("weekend-claude", "weekend-both") else "sonnet"   # 
 if explain == "1":
     fmt = lambda s: f"5h left {s['left5']:.0f}% week left {s['left7']:.0f}% surplus {s['surplus']:.0f}" if s else "no data"
     print(f"claude: {claude} — {hub_why}\ncodex:  {codex} — {fmt(x)}\nmatrix: ({claude},{codex}) → mode {mode}; override {ov} → route {route}" + "".join("\nnote:   " + n for n in notes + card_notes), file=sys.stderr)
-print(f"mode={mode} hub={hub} route={route} subagent={subagent} claude={claude} codex={codex} override={ov} card={','.join(card) or '-'}")
+print(f"hub={hub} subagent={subagent} claude={claude} codex={codex} override={ov} card={','.join(card) or '-'}")
 if detail == "1":
     def side(n, s, raw, pol, fresh):
         if not s: return f"{n}_raw={raw} {n}_policy={pol} {n}_fresh={fresh} {n}_cards={len(live(n))}"
@@ -129,5 +129,5 @@ if detail == "1":
                 f"{n}_surplus={s['surplus']:.0f} {n}_reset_h={(s['r7'] - now) / 3600:.0f} {n}_proj7={proj} {n}_runway_h={run} {n}_cards={len(live(n))}")
     if not c: cf = "missing" if hub_why.startswith(("no state", "unreadable")) else "stale"
     else: cf = "stale-partial" if c.get("age", 0) > 6 * 3600 else "fresh"
-    print("detail: " + side("claude", c, claude_raw, claude, cf) + " " + side("codex", x, codex_raw, codex, "fresh" if x else "missing"))
+    print(f"detail: mode={mode} route={route} " + side("claude", c, claude_raw, claude, cf) + " " + side("codex", x, codex_raw, codex, "fresh" if x else "missing"))
 PY
