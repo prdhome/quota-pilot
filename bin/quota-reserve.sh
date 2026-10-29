@@ -9,9 +9,12 @@
 F="${QUOTA_RESERVES:-$HOME/.claude/state/quota-reserves.json}"
 cmd="${1:-list}"; shift || true
 python3 -I - "$F" "$cmd" "$@" <<'PY'
-import json, os, sys, time
+import fcntl, json, os, sys, tempfile, time
 from datetime import datetime
 f, cmd, *a = sys.argv[1:]
+# 整個 read-modify-write 持排他鎖；寫入用同目錄唯一暫存檔再 replace（2026-10-29 bin/ 審查）
+os.makedirs(os.path.dirname(os.path.abspath(f)), exist_ok=True)
+lock = open(f + ".lock", "a"); fcntl.flock(lock, fcntl.LOCK_EX)
 d = json.load(open(f)) if os.path.exists(f) else {"cards": [], "credits": []}
 now = time.time()
 ts = lambda s: datetime.fromisoformat(s).timestamp()
@@ -21,17 +24,23 @@ def week_reset(p):
         if os.environ.get("QP_CODEX_TSV"): return float(os.environ["QP_CODEX_TSV"].split()[3])
         return float(json.load(open(os.path.expanduser("~/.claude/state/codex_limits.json")))["row"][3])
     except Exception: return None
-def save(): json.dump(d, open(f, "w"), ensure_ascii=False, indent=2)
+def save():
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(f)), prefix=".quota-reserves.")
+    try:
+        with os.fdopen(fd, "w") as fh: json.dump(d, fh, ensure_ascii=False, indent=2)
+        os.replace(tmp, f)
+    except BaseException:
+        os.unlink(tmp); raise
 live = lambda c: not c.get("used_at") and ts(c["expires"]) > now
 if cmd == "list":
-    for c in sorted(d["cards"], key=lambda c: c["expires"]):
+    for c in sorted(d["cards"], key=lambda c: ts(c["expires"])):
         st = "已用 " + c["used_at"] if c.get("used_at") else ("過期" if ts(c["expires"]) <= now else f"可用，剩 {(ts(c['expires']) - now) / 86400:.1f} 天")
         print(f"{c['provider']:6} 卷  到期 {c['expires']}  {st}")
     for c in d.get("credits", []):
         print(f"{c['provider']} 點數 US${c['usd_left']}/{c['usd_total']}  到期 {c['expires']}  {c.get('note', '')}")
 elif cmd == "use":
     p = a[0] if a else sys.exit("usage: use <claude|codex>")
-    cs = sorted((c for c in d["cards"] if c["provider"] == p and live(c)), key=lambda c: c["expires"])
+    cs = sorted((c for c in d["cards"] if c["provider"] == p and live(c)), key=lambda c: ts(c["expires"]))
     if not cs: sys.exit(f"沒有可用的 {p} 卷")
     cs[0]["used_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
     cs[0]["reset7_before"] = week_reset(p)
