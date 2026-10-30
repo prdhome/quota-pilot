@@ -1,5 +1,5 @@
 {
- "generated_at": 1793374432,
+ "generated_at": 1793376241,
  "mode": {
   "mode": "2",
   "hub": "opus",
@@ -24,8 +24,8 @@
   "claude_left7": "99",
   "claude_surplus": "1",
   "claude_reset_h": "164",
-  "claude_proj7": "47",
-  "claude_runway_h": "353",
+  "claude_proj7": "41",
+  "claude_runway_h": "403",
   "claude_cards": "0",
   "codex_raw": "lean",
   "codex_policy": "ok",
@@ -34,8 +34,8 @@
   "codex_left7": "80",
   "codex_surplus": "-7",
   "codex_reset_h": "146",
-  "codex_proj7": "153",
-  "codex_runway_h": "88",
+  "codex_proj7": "150",
+  "codex_runway_h": "90",
   "codex_cards": "1"
  },
  "effort": null,
@@ -48,19 +48,19 @@
    "used": 1.0,
    "resets_at": 1793966400.0
   },
-  "updated_at": 1793374372,
-  "surplus": 1.1
+  "updated_at": 1793376240,
+  "surplus": 1.4
  },
  "codex": {
   "five": {
    "used": 59.0,
-   "resets_at": 1793376733.0
+   "resets_at": 1793376732.0
   },
   "week": {
    "used": 20.0,
-   "resets_at": 1793900327.0
+   "resets_at": 1793900326.0
   },
-  "surplus": -7.0
+  "surplus": -6.7
  },
  "cards": [
   {
@@ -87,12 +87,30 @@
  "credits": [
   {
    "provider": "claude-cloud",
-   "usd_left": 31.66,
+   "kind": "session",
+   "usd_left": 44.0,
    "usd_total": 100.0,
    "expires": "2026-11-05T15:59:00+08:00",
    "log": [
     [
      1793374074,
+     31.66
+    ],
+    [
+     1793375522,
+     44.0
+    ]
+   ]
+  },
+  {
+   "provider": "claude-usage",
+   "kind": "usage",
+   "usd_left": 31.66,
+   "usd_total": 31.66,
+   "expires": null,
+   "log": [
+    [
+     1793375522,
      31.66
     ]
    ]
