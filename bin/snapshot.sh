@@ -24,7 +24,9 @@ def surplus(w):
     if not r: return None
     while r <= now: r += WEEK
     return round(100 * (1 - (r - now) / WEEK) - w["used"], 1)
-out = {"generated_at": round(now), "mode": dict(kv.split("=", 1) for kv in mode.split()), "explain": explain.splitlines(), "detail": dict(kv.split("=", 1) for kv in det.split())}
+detail = dict(kv.split("=", 1) for kv in det.split())
+# 2026-10-29：mode／route 移出 quota-mode 第一行，改由 detail 帶，併回 mode 給儀表板
+out = {"generated_at": round(now), "mode": (lambda m: {k: m[k] for k in ("mode", "hub", "route", *m) if k in m})({**dict(kv.split("=", 1) for kv in mode.split()), **{k: detail.pop(k) for k in ("mode", "route") if k in detail}}), "explain": explain.splitlines(), "detail": detail}
 out["effort"] = "low" if hubeff.split()[1:] == ["low"] and out["mode"].get("hub") == "opus" else None
 try:
     s = json.load(open(state))
