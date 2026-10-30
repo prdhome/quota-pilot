@@ -85,6 +85,8 @@ for (const name of names) {
         lastCycles: [...q('#providers .last-cycle')].map(e => ({ tag: e.dataset.tag, text: e.textContent })),
         stab: (b => b && { max: +b.dataset.max, flaps: +b.dataset.flaps, tiles: b.querySelectorAll('.wt').length })(document.querySelector('#stability .stab')),
         stabLevel: document.querySelector('#stability .stab-verdict')?.dataset.level,
+        peaks: [...q('#peaks .peak')].map(b => ({ p: b.dataset.p, rows: b.querySelectorAll('.heat .dl').length, cells: b.querySelectorAll('.heat .c').length,
+          sev: [...b.querySelectorAll('.heat .c')].map(c => c.dataset.sev).filter(Boolean).length, note: b.querySelector('.peak-note')?.textContent || '' })),
       };
     });
     r.snapEffort = await page.evaluate(() => fetch('data/snapshot.json').then(x => x.json()).then(j => j.effort));
@@ -173,8 +175,31 @@ for (const name of names) {
       JSON.stringify({ eff: r.eff, snapEffort: r.snapEffort, todo: r.todo }));
     const lc = ['claude', 'codex'].filter(p => sc[p]);
     check(`${t}：上週期結算 ${lc.length} 行、合成歷史的上週期剩很多 → 浪費`, r.lastCycles.length === lc.length && r.lastCycles.every(x => x.tag === 'waste' && /^上週期 \d+\/\d+ 結束時剩 \d+%：浪費/.test(x.text)), JSON.stringify(r.lastCycles));
+    check(`${t}：5h 尖峰熱圖 2 張、每列 24 格、有摘要`, r.peaks.length === 2 && r.peaks.every(x => !sc[x.p] ? true : x.rows >= 1 && x.cells === x.rows * 24 && x.sev > 0 && /5h (偏低多在 \d+–\d+ 時|沒有偏低)/.test(x.note)), JSON.stringify(r.peaks.map(({ sev, ...x }) => x)));
     check(`${t}：規則穩定度 3 格＋判讀（warn ⇔ 單日 ≥6 或來回 ≥3）`, r.stab && r.stab.tiles === 3 && r.stabLevel === (r.stab.max >= 6 || r.stab.flaps >= 3 ? 'warn' : 'ok'), JSON.stringify({ stab: r.stab, level: r.stabLevel }));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
+    await page.close();
+  }
+}
+
+// --- 5h 尖峰熱圖：注入 UTC 歷史，Claude 每天 14–16 時 5h 用到 95%（見底）、其他時段 10%；Codex 一直 10% ---
+{
+  const now = Math.floor(Date.now() / 1000), D = 86400, rows = [];
+  for (let t = now - 9 * D; t <= now; t += 1800) {
+    const h = new Date(t * 1000).getUTCHours();
+    rows.push({ t, mode: 1, ct: 'rich', xt: 'rich', hub: 'opus', override: '-', card: '-', c5: h >= 14 && h <= 16 ? 95 : 10, x5: 10, c7: 30, cs: 10, x7: 30, xs: 10 });
+  }
+  const body = rows.map(r => JSON.stringify(r)).join('\n') + '\n';
+  for (const vp of VIEWPORTS) {
+    const { page, errors } = await open(`${base}/${names[0]}/`, vp, page => page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body })), { timezoneId: 'UTC' });
+    const r = await page.evaluate(() => [...document.querySelectorAll('#peaks .peak')].map(b => { const n = b.querySelector('.peak-note');
+      return { p: b.dataset.p, hit: n.dataset.hit, note: n.textContent, crit: b.querySelectorAll('.c[data-sev="crit"]').length, warn: b.querySelectorAll('.c[data-sev="warn"]').length,
+        hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }; }));
+    const m = r[0]?.note.match(/(\d+) 天裡有 (\d+) 天（其中 (\d+) 天見底）/);
+    check(`5h 尖峰/${vp.tag}：Claude 摘要指出 14–17 時、每天都見底；Codex 沒有偏低；無水平捲動`,
+      errors.length === 0 && r[0]?.hit === '14-17' && m && m[2] === m[3] && +m[2] >= 9 && +m[2] <= +m[1] && r[0].warn === 0 && r[0].crit >= 27
+        && r[1]?.hit === '' && r[1].note.includes('沒有偏低') && !r[0].hscroll, JSON.stringify({ errors, r }));
+    if (SHOTS) await page.locator('#peaks').screenshot({ path: `${SHOTS}/peaks-${vp.tag}.png` });
     await page.close();
   }
 }

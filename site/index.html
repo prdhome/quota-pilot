@@ -123,6 +123,20 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .stab-verdict::before { content: "✓"; color: var(--good-text); flex: none; font-weight: 700; }
 .stab-verdict[data-level="warn"]::before { content: "▲"; color: var(--warning); }
 .stab-verdict[data-level="note"]::before { content: "◇"; color: var(--muted); }
+/* 5h 尖峰時段熱圖：列＝日期、欄＝小時，格色＝該小時 5h 最高已用的嚴重度（同現況圓環的 5h 門檻） */
+.peaks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.peak { position: relative; min-width: 0; }
+.peak-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+.heat { display: grid; grid-template-columns: 52px repeat(24, minmax(0, 1fr)); gap: 2px; font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.heat .hh { text-align: left; white-space: nowrap; overflow: visible; }
+.heat .dl { white-space: nowrap; padding-right: 4px; line-height: 12px; }
+.heat .c { height: 12px; border-radius: 2px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--ring); }
+.heat .c[data-sev="ok"] { background: color-mix(in oklab, var(--muted) 28%, var(--surface-2)); box-shadow: none; }
+.heat .c[data-sev="warn"] { background: var(--warning); box-shadow: none; }
+.heat .c[data-sev="crit"] { background: var(--critical); box-shadow: none; }
+.peak-note { font-size: 13px; margin: 8px 0 0; }
+.peak-note b { font-variant-numeric: tabular-nums; }
+.legend.heat-legend .sw { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
 .eff { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 8px; margin-right: 6px; border-radius: 6px; border: 1px dashed var(--axis); color: var(--ink-2); }
 /* matrix */
 .lower { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
@@ -220,6 +234,8 @@ footer a { color: inherit; }
 @media (max-width: 760px) {
   .providers, .lower { grid-template-columns: minmax(0, 1fr); }
   .work { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .peaks { grid-template-columns: minmax(0, 1fr); }
+  .heat { grid-template-columns: 44px repeat(24, minmax(0, 1fr)); gap: 1px; }
   .headline { font-size: 20px; }
   .todo li { font-size: 14px; }
   .matrix { grid-template-columns: 40px repeat(4, minmax(0, 1fr)); font-size: 11px; }
@@ -294,6 +310,12 @@ footer a { color: inherit; }
       <div class="legend routes" id="route-legend"></div>
       <details><summary>表格檢視</summary><div id="table" class="scroll-x"></div></details>
     </section>
+
+    <section class="card" aria-labelledby="h-peaks">
+      <h2 id="h-peaks">5h 尖峰時段（近 14 天）</h2>
+      <div class="legend heat-legend" id="peak-legend"></div>
+      <div class="peaks" id="peaks"></div>
+    </section>
   </div>
   <footer>正值＝用得比週期慢（額度會剩）；負值＝超速。資料由本機每 30 分鐘推送 · <a href="https://github.com/prdhome/quota-pilot">source</a></footer>
 </div>
@@ -349,6 +371,14 @@ const ACTION = {
     warn: (why, pair) => `常卡在門檻邊緣（${why}）${pair ? `：最常來回的是 ${pair}` : ''}。跑 bin/analyze.py 看「門檻附近」，考慮加大遲滯（HYST）。`,
     short: d => `歷史只有 ${d} 天（少於 ${ACTION.stability.minDays} 天），僅供參考。`,
     none: '歷史資料累積中（每 30 分鐘一筆）。',
+  },
+  // 5h 尖峰時段：每小時取 5h 最高已用，剩 < thr.low5h 算偏低、< thr.block5h 算見底（同現況圓環）；摘要找偏低天數最多的連續 win 小時
+  peaks: {
+    days: 14, win: 3,
+    legend: [['ok', '正常'], ['warn', '偏低（5h 剩 <30%）'], ['crit', '見底（剩 <10%）'], ['', '沒有資料']],
+    hit: (h, n, tot, crit) => [`5h 偏低多在 `, `${h} 時`, `：${tot} 天裡有 ${n} 天${crit ? `（其中 ${crit} 天見底）` : ''}。重工作可以避開這段，或提前交給另一邊。`],
+    none: tot => `近 ${tot} 天 5h 沒有偏低（剩 <30%）。`,
+    empty: '讀不到 5h 歷史。',
   },
   // 工作量格（data/work.json，由 bin/work-stats.sh 產生；只有次數）
   work: {
@@ -594,6 +624,7 @@ function render() {
   renderReasons(m);
 
   renderStability();
+  renderPeaks();
   renderReserves();
   renderWork();
   drawCharts();
@@ -658,6 +689,58 @@ function renderStability() {
       tile('來回跳動', st.flaps, '次', `${S.flapH} 小時內 A→B→A`),
       tile('主控切換', st.hubMax, '次/天', 'Opus↔Sonnet 單日最多')),
     el('p', { class: 'stab-verdict', 'data-level': level }, text + (why && st.days < S.minDays ? `（${S.short(st.days.toFixed(1))}）` : '')));
+}
+
+// 5h 尖峰時段熱圖：列＝最近 days 天（舊→新）、欄＝0–23 時（瀏覽器時區），格＝該小時所有讀數的 5h 最高已用 %
+function peaksOf(p) {
+  const k = p === 'claude' ? 'c5' : 'x5', P = ACTION.peaks, T = ACTION.thr, cut = nowS() - P.days * 86400, cells = new Map();
+  for (const r of hist) {
+    if (r.t < cut || r[k] == null) continue;
+    const d = new Date(r.t * 1000), key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!cells.has(key)) cells.set(key, { t: r.t, h: new Array(24).fill(null) });
+    const row = cells.get(key).h, h = d.getHours();
+    row[h] = Math.max(row[h] ?? -Infinity, r[k]);
+  }
+  const sev = v => v == null ? '' : 100 - v < T.block5h ? 'crit' : 100 - v < T.low5h ? 'warn' : 'ok';
+  const days = [...cells.values()].sort((a, b) => a.t - b.t).map(d => ({ t: d.t, h: d.h, sev: d.h.map(sev) }));
+  // 連續 win 小時（可跨午夜）裡，有偏低／見底的天數加總最多的一段
+  let best = null;
+  for (let s = 0; s < 24; s++) {
+    const hrs = Array.from({ length: P.win }, (_, i) => (s + i) % 24);
+    const hitDays = days.filter(d => hrs.some(h => d.sev[h] === 'warn' || d.sev[h] === 'crit'));
+    const score = hrs.reduce((a, h) => a + days.filter(d => d.sev[h] === 'warn' || d.sev[h] === 'crit').length, 0);
+    if (score && (!best || score > best.score)) best = { s, score, n: hitDays.length, crit: days.filter(d => hrs.some(h => d.sev[h] === 'crit')).length };
+  }
+  return { days, best };
+}
+function renderPeaks() {
+  const P = ACTION.peaks, wd = '日一二三四五六';
+  $('peak-legend').replaceChildren(...P.legend.map(([k, name]) => el('span', {}, el('i', { class: 'sw c', 'data-sev': k, style: k ? `background:${{ ok: 'color-mix(in oklab, var(--muted) 28%, var(--surface-2))', warn: 'var(--warning)', crit: 'var(--critical)' }[k]}` : 'background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--ring)' }), name)));
+  $('peaks').replaceChildren(...['claude', 'codex'].map(p => {
+    const { days, best } = peaksOf(p), box = el('div', { class: 'peak', 'data-p': p });
+    box.append(el('p', { class: 'peak-name' }, el('span', { class: 'dot', style: `background:var(--${p})` }), NAME[p]));
+    if (!days.length) { box.append(el('p', { class: 'peak-note' }, P.empty)); return box; }
+    const tip = el('div', { class: 'tip' }), grid = el('div', { class: 'heat', role: 'img', 'aria-label': `${NAME[p]} 近 ${days.length} 天每小時 5h 最高已用` });
+    grid.append(el('span'), ...Array.from({ length: 24 }, (_, h) => el('span', { class: 'hh' }, h % 6 ? '' : String(h))));
+    for (const d of days) {
+      const dt = new Date(d.t * 1000);
+      grid.append(el('span', { class: 'dl' }, `${md(d.t)} ${wd[dt.getDay()]}`));
+      d.h.forEach((v, h) => grid.append(el('span', { class: 'c', 'data-sev': d.sev[h], 'data-tip': v == null ? `${md(d.t)}（${wd[dt.getDay()]}）${h} 時 · 沒有資料` : `${md(d.t)}（${wd[dt.getDay()]}）${h} 時 · 5h 最高已用 ${Math.round(v)}%` })));
+    }
+    grid.addEventListener('pointerover', ev => {
+      const c = ev.target.closest('.c'); if (!c) return;
+      const bb = box.getBoundingClientRect(), cb = c.getBoundingClientRect();
+      tip.textContent = c.dataset.tip; tip.style.display = 'block';
+      tip.style.left = Math.min(bb.width - tip.offsetWidth, Math.max(0, cb.left - bb.left + cb.width / 2 - tip.offsetWidth / 2)) + 'px';
+      tip.style.top = (cb.top - bb.top - 30) + 'px';
+    });
+    grid.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+    const note = el('p', { class: 'peak-note', 'data-hit': best ? `${best.s}-${(best.s + P.win) % 24}` : '' });
+    if (best) { const [a, b, c] = P.hit(`${best.s}–${(best.s + P.win) % 24}`, best.n, days.length, best.crit); note.append(a, el('b', {}, b), c); }
+    else note.textContent = P.none(days.length);
+    box.append(tip, grid, note);
+    return box;
+  }));
 }
 
 // 工作量（data/work.json）：直做通過、派工首次成功、進行中、週回顧待處理；讀不到就整塊顯示「還沒接上」
