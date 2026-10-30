@@ -116,6 +116,13 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .wt .wt-sub { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
 .wt[data-none] .wt-num { color: var(--muted); }
 .work-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+.stab { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.stab .wt { padding: 8px 10px; }
+.stab .wt .wt-num { font-size: 20px; }
+.stab-verdict { font-size: 13px; margin: 8px 0 0; display: flex; gap: 6px; align-items: flex-start; }
+.stab-verdict::before { content: "✓"; color: var(--good-text); flex: none; font-weight: 700; }
+.stab-verdict[data-level="warn"]::before { content: "▲"; color: var(--warning); }
+.stab-verdict[data-level="note"]::before { content: "◇"; color: var(--muted); }
 .eff { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 8px; margin-right: 6px; border-radius: 6px; border: 1px dashed var(--axis); color: var(--ink-2); }
 /* matrix */
 .lower { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
@@ -268,6 +275,8 @@ footer a { color: inherit; }
         <h2 id="h-matrix">7d 模式矩陣</h2>
         <div class="matrix" id="matrix"></div>
         <p class="axis-note" id="matrix-note">列：Claude 7d 等級；欄：Codex 7d 等級（已含重置卷）。5h 只做暫時覆寫。</p>
+        <h2 style="margin:16px 0 0">規則穩定度（近 7 天）</h2>
+        <div id="stability"></div>
         <h2 style="margin:16px 0 0">為什麼是這個模式</h2>
         <ol class="reasons" id="reasons"></ol>
         <details><summary>原始判斷紀錄</summary><pre class="why" id="why"></pre></details>
@@ -332,6 +341,14 @@ const ACTION = {
     gap: h => `最後讀數離結束 ${h} 小時，實際剩量可能更少。`,
     early: d => `上週期 ${d} 提前重置（用卷或供應商重置），不算浪費。`,
     none: '歷史裡還沒有完整結束的週期（保留 14 天）。',
+  },
+  // 規則穩定度：跟 bin/analyze.py switches() 同算法與同門檻（單日切換 ≥ maxPerDay 或來回 ≥ flaps → 建議加大遲滯 HYST）
+  stability: {
+    flapH: 3, maxPerDay: 6, flaps: 3, minDays: 3,
+    ok: '穩定：沒有頻繁切換或來回跳動。',
+    warn: (why, pair) => `常卡在門檻邊緣（${why}）${pair ? `：最常來回的是 ${pair}` : ''}。跑 bin/analyze.py 看「門檻附近」，考慮加大遲滯（HYST）。`,
+    short: d => `歷史只有 ${d} 天（少於 ${ACTION.stability.minDays} 天），僅供參考。`,
+    none: '歷史資料累積中（每 30 分鐘一筆）。',
   },
   // 工作量格（data/work.json，由 bin/work-stats.sh 產生；只有次數）
   work: {
@@ -576,6 +593,7 @@ function render() {
   $('why').textContent = (snap.explain || []).join('\n');
   renderReasons(m);
 
+  renderStability();
   renderReserves();
   renderWork();
   drawCharts();
@@ -601,6 +619,45 @@ function lastCycleEl(p) {
   const tag = c.left >= L.waste ? 'waste' : c.left <= L.empty ? 'empty' : 'ok', [pre, num] = L.end(md(c.t), c.left);
   return el('p', { class: 'last-cycle', 'data-tag': tag }, pre, el('b', {}, num), L.tag[tag] ? el('span', { class: 'tag-w' }, L.tag[tag]) : null,
     c.gapH > L.gapH ? el('small', {}, L.gap(Math.round(c.gapH))) : null);
+}
+
+// 規則穩定度：近 7 天模式切換（單日最多、最近 24h）、3 小時內 A→B→A 來回跳動、主控 Opus↔Sonnet 切換；日界照瀏覽器時區
+function stabilityOf(rows) {
+  const S = ACTION.stability, day = t => new Date(t * 1000).toDateString(), perDay = {}, hubDay = {}, events = [], pairs = {};
+  let n24 = 0, flaps = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const a = rows[i - 1], b = rows[i];
+    if (a.mode !== b.mode) { perDay[day(b.t)] = (perDay[day(b.t)] || 0) + 1; events.push([b.t, a.mode, b.mode]); if (b.t >= nowS() - 86400) n24++; }
+    if (a.hub !== b.hub) hubDay[day(b.t)] = (hubDay[day(b.t)] || 0) + 1;
+  }
+  for (let j = 1; j < events.length; j++) {
+    const [t0, a0, b0] = events[j - 1], [t1, a1, b1] = events[j];
+    if (a1 === b0 && b1 === a0 && t1 - t0 <= S.flapH * 3600) { flaps++; const k = [a0, b0].sort((x, y) => x - y).join('-'); pairs[k] = (pairs[k] || 0) + 1; }
+  }
+  const top = Object.entries(pairs).sort((x, y) => y[1] - x[1])[0];
+  return { maxPerDay: Math.max(0, ...Object.values(perDay)), hubMax: Math.max(0, ...Object.values(hubDay)), n24, flaps,
+    top: top && { modes: top[0].split('-').map(Number), n: top[1] }, days: rows.length ? (rows[rows.length - 1].t - rows[0].t) / 86400 : 0 };
+}
+// 來回的兩格差在哪一邊：M1–M12 → （Claude 列, Codex 欄）
+function boundaryName([a, b]) {
+  const R = ['rich', 'ok', 'tight'], C = ['rich', 'ok', 'lean', 'tight'], pos = n => [R[Math.floor((n - 1) / 4)], C[(n - 1) % 4]];
+  const [pa, pb] = [pos(a), pos(b)], side = [];
+  if (pa[0] !== pb[0]) side.push(`Claude ${TIER[pa[0]]}↔${TIER[pb[0]]}`);
+  if (pa[1] !== pb[1]) side.push(`Codex ${TIER[pa[1]]}↔${TIER[pb[1]]}`);
+  return `M${a}↔M${b}（${side.join('＋')}）`;
+}
+function renderStability() {
+  const S = ACTION.stability, rows = hist.filter(r => r.t >= nowS() - 7 * 86400 && r.mode != null);
+  if (rows.length < 2) return $('stability').replaceChildren(el('p', { class: 'stab-verdict', 'data-level': 'note' }, S.none));
+  const st = stabilityOf(rows), tile = (label, num, unit, sub) => el('div', { class: 'wt' }, el('p', { class: 'wt-label' }, label), el('p', { class: 'wt-num' }, String(num), el('small', {}, unit)), el('p', { class: 'wt-sub' }, sub));
+  const why = [st.maxPerDay >= S.maxPerDay ? `單日切換 ${st.maxPerDay} 次` : '', st.flaps >= S.flaps ? `來回跳動 ${st.flaps} 次` : ''].filter(Boolean).join('、');
+  const [level, text] = why ? ['warn', S.warn(why, st.top && `${boundaryName(st.top.modes)} ${st.top.n} 次`)] : st.days < S.minDays ? ['note', S.short(st.days.toFixed(1))] : ['ok', S.ok];
+  $('stability').replaceChildren(
+    el('div', { class: 'stab', 'data-max': st.maxPerDay, 'data-flaps': st.flaps, 'data-hub': st.hubMax },
+      tile('模式切換', st.maxPerDay, '次/天', `單日最多；24h 內 ${st.n24} 次`),
+      tile('來回跳動', st.flaps, '次', `${S.flapH} 小時內 A→B→A`),
+      tile('主控切換', st.hubMax, '次/天', 'Opus↔Sonnet 單日最多')),
+    el('p', { class: 'stab-verdict', 'data-level': level }, text + (why && st.days < S.minDays ? `（${S.short(st.days.toFixed(1))}）` : '')));
 }
 
 // 工作量（data/work.json）：直做通過、派工首次成功、進行中、週回顧待處理；讀不到就整塊顯示「還沒接上」
