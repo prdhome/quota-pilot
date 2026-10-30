@@ -39,7 +39,7 @@ for p, keys in (("claude", {"five", "week", "surplus", "updated_at"}), ("codex",
         need(v.get("surplus") is None or (num(v["surplus"]) and -100 <= v["surplus"] <= 100), f"{p}.surplus {v.get('surplus')!r}")
 
 need(isinstance(snap.get("cards"), list) and all(isinstance(c, dict) and list(c) == ["provider", "expires", "used_at"] for c in snap.get("cards") or []), f"cards {snap.get('cards')!r}")
-need(isinstance(snap.get("credits"), list) and all(isinstance(c, dict) and list(c) == ["provider", "usd_left", "usd_total", "expires"] for c in snap.get("credits") or []), f"credits {snap.get('credits')!r}")
+need(isinstance(snap.get("credits"), list) and all(isinstance(c, dict) and list(c) == ["provider", "usd_left", "usd_total", "expires", "log"] and all(isinstance(x, list) and len(x) == 2 for x in c["log"]) for c in snap.get("credits") or []), f"credits {snap.get('credits')!r}")
 
 if sc:
     want = sc.get("expect", {})

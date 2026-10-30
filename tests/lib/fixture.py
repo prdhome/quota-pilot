@@ -45,7 +45,8 @@ def write_state(sc, out, now):
     r = sc.get("reserves") or {}
     res = {"cards": [{"provider": k["provider"], "expires": iso(now + k["expires_in"]), "used_at": k.get("used_at")} for k in r.get("cards", [])],
            "credits": [{"provider": k["provider"], "usd_left": k["usd_left"], "usd_total": k["usd_total"], "expires": iso(now + k["expires_in"]),
-                        "note": k.get("note", "")} for k in r.get("credits", [])]}
+                        "note": k.get("note", ""), **({"log": [{"t": iso(now - ago), "usd_left": v} for ago, v in k["log"]]} if "log" in k else {})}
+                       for k in r.get("credits", [])]}
     with open(os.path.join(st, "quota-reserves.json"), "w") as fh:
         json.dump(res, fh, ensure_ascii=False, indent=2)
     return tsv

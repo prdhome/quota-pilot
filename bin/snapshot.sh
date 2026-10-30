@@ -12,6 +12,7 @@ explain="$(cat "${TMPDIR:-/tmp}/qp-explain.$$")"; rm -f "${TMPDIR:-/tmp}/qp-expl
 hubeff="$(QUOTA_RESERVES="$RES" "$d/pick-model.sh" --state "$STATE" --effort 2>/dev/null)"
 python3 -I - "$STATE" "$RES" "$tsv" "$mode" "$explain" "$hubeff" <<'PY'
 import json, sys, time
+from datetime import datetime
 state, res, tsv, mode, explain, hubeff = sys.argv[1:7]
 mode, _, det = mode.partition("\ndetail: ")
 now = time.time(); WEEK = 7 * 86400
@@ -40,6 +41,14 @@ else: out["codex"] = None
 try: r = json.load(open(res))
 except Exception: r = {}
 out["cards"] = [{k: c.get(k) for k in ("provider", "expires", "used_at")} for c in r.get("cards", [])]
-out["credits"] = [{k: c.get(k) for k in ("provider", "usd_left", "usd_total", "expires")} for c in r.get("credits", [])]
+def credit_log(c):  # 餘額紀錄（quota-reserve.sh credit）：只留 30 天內的 [epoch, USD]，給儀表板算消耗速度
+    out = []
+    for e in c.get("log") or []:
+        try:
+            t = datetime.fromisoformat(e["t"]).timestamp()
+            if t >= now - 30 * 86400: out.append([round(t), float(e["usd_left"])])
+        except (KeyError, TypeError, ValueError): pass
+    return sorted(out)
+out["credits"] = [{**{k: c.get(k) for k in ("provider", "usd_left", "usd_total", "expires")}, "log": credit_log(c)} for c in r.get("credits", [])]
 print(json.dumps(out, ensure_ascii=False, indent=1))
 PY
