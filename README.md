@@ -27,13 +27,15 @@ Claude Code ＋ Codex 訂閱額度的動態調度：依兩邊 5h／7d 用量與�
 - 行動卡中間的藍框：
   - 「下一個轉折」：5h 覆寫結束（附覆寫解除後的派工閘門）、照目前速度週額度見底、週重置、卷到期，取最早的一個，附時間與倒數。
   - 「Harness」：Claude 7d 吃緊（主控已降 Sonnet）或 Claude 5h 見底，且 Codex 充裕／正常時，提示可改用 Codex CLI 當主控。只是畫面提示，不影響 `quota-mode.sh` 判定。
-  - 「Claude Code 主控」：照目前主控模型給 `/model opus` 或 `/model sonnet`，點一下就複製。
+  - 「Claude Code 主控」：照目前主控模型給 `/model opus` 或 `/model sonnet`，點一下就複製。主控是 Opus 時旁邊標 effort：`effort low`＝中間檔（週盈餘未達充裕門檻，啟動時帶 `--effort low`），否則「effort 預設」。effort 由 `snapshot.json` 的 `effort` 欄決定（`bin/pick-model.sh --effort` 產出），網頁不自己算門檻。
 - 現況磚（每邊一塊）：兩個圓環＝5h 剩與週剩，顏色是嚴重度不是廠商色。5h 剩 <10% 紅、<30% 黃（`ACTION.thr.block5h／low5h`，須與 `BLOCK_5H／LOW_5H` 一致）；週剩依 7d 等級：吃緊紅、超速黃。
 - 行動卡左側色條＝最差狀態：5h 見底、閘門「非急件延後」或數據嚴重過期 → 紅；7d 吃緊／超速、5h 偏低、過期或要用卷 → 黃；其餘綠。
 - chip 的 Claude／Codex 等級都標 7d，跟 5h 覆寫分開。
 - 「重置卷與點數到期」是時間軸：每張卷／點數一條，黑線是今天，已用或過期的灰掉；沒有登錄任何卷時收成一行。
 - 行動卡下方「今天可用」：週剩 ÷ 剩餘天數＝今天大約可用的週額度 %；跟平均每天 14%（100/7）比較：差距在 1 個百分點內標「約平均」（`ACTION.budget.avgTol`），否則標寬或緊。週期 24 小時內重置時，改成「剩下的今天用完」。
 - 每邊額度卡底下的燃燒曲線：實線＝本週期的週已用 %；虛線＝照週期進度（對角線）；點線＝照目前平均速度推估到週期結束，下面一句話寫出「約幾點見底」或「結束時約剩幾 %」。推估假設之後照目前速度用，遇到非排程 reset 會不準。
+- 每邊額度卡的週盈餘底下一行「上週期」：歷史（保留 14 天）裡最近一次週期結束時剩多少。判準跟 `bin/analyze.py` 一樣：剩 ≥20% 標「浪費」、≤3% 標「見底」，最後讀數離結束超過 6 小時加註；提前重置（用卷或供應商重置）不算浪費。門檻在 `ACTION.lastCycle`。
+- 「工作量（近 7 天）」：讀 `data/work.json`（`bin/work-stats.sh`），四格＝直做通過數、派工 Codex 首次成功數、進行中任務、週回顧待處理（裁決＋memory）。少於 5 件標「樣本少」（`ACTION.work.minN`）；統計超過 90 分鐘沒更新標過期；沒有 `work.json`（orchestrator 沒接上）整塊顯示「還沒接上」，不影響其他區塊。
 - 7d 模式矩陣：格子顏色越深＝過去 7 天停在那一格越久（格內小字是占比）；折線＝最近 24 小時走過的模式，終點（藍點）是現在。
 - 「為什麼是這個模式」：把判斷拆成 Claude 等級、Codex 等級、矩陣、5h 覆寫、主控五步，用實際數字對照門檻說明。Codex 門檻在 `ACTION.thr`，須與 `bin/quota-mode.sh` 一致（`tests/policy-test.sh` 檢查）。
 - 7 天趨勢圖的垂直虛線＝週期重置（週 reset 時間往後跳；舊資料沒有 `cr／xr` 時看週已用驟降 ≥20 點），盈餘線在那裡斷崖是正常的。重置標籤靠得近時自動錯開成多列，線尾數值接近時上下拉開，窄螢幕會略過擠在一起的日期。
@@ -64,7 +66,8 @@ bin/preview.sh override-5h    # 用該情境的假資料開預覽 http://127.0.0
 
 - `web-smoke.sh` 需要 node；第一次跑會自動在 `tests/web/` 安裝 playwright，沒有瀏覽器時先跑 `npx --prefix tests/web playwright install chromium`。
 - `snapshot.sh` 測試用 `QP_CODEX_TSV` 注入 Codex 讀數（CI 沒有 codex CLI；設成 `-` = 讀不到）；未設時照舊呼叫 `codex-quota.sh --cached`。
-- 新增情境：在 `tests/fixtures/` 加一個 JSON（照現有格式，`expect.mode` 寫預期判定、`expect.action` 寫行動卡必須出現的字），三個測試與預覽都會自動納入。
+- 新增情境：在 `tests/fixtures/` 加一個 JSON（照現有格式，`expect.mode` 寫預期判定、`expect.action` 寫行動卡必須出現的字；可選 `expect.effort` 寫預期的 `low`／`null`），三個測試與預覽都會自動納入。
+- 假網站預設會產生一份 `data/work.json`；情境的 `work` 欄覆寫部分欄位，設 `null`＝不產生（測「還沒接上」）。
 - GitHub Actions（`.github/workflows/ci.yml`）在 push 到 main 與每個 PR 跑上面四個測試。
 
 ## 校準流程

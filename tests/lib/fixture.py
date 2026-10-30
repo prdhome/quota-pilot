@@ -5,6 +5,7 @@
 
   fixture.py state <情境> <輸出目錄>   寫 state/rate_limits.json、state/quota-reserves.json、state/codex.tsv（Codex 讀不到時為 "-"）
   fixture.py site  <情境> <輸出目錄>   state ＋ 複製 site/ ＋ 用 bin/snapshot.sh 產生 data/snapshot.json ＋ 合成 7 天 data/history.jsonl
+                                       ＋ data/work.json（格式同 bin/work-stats.sh；情境的 "work" 欄覆寫預設值，設 null＝不產生）
   fixture.py list                       列出情境與說明
 
 <情境> 可以是名稱（rich）或檔案路徑。不讀也不寫任何真實額度檔（HOME 指向輸出目錄內的空資料夾）。
@@ -59,6 +60,7 @@ M = {("rich", "rich"): (1, "delegate"), ("rich", "ok"): (2, "cost"), ("rich", "l
      ("ok", "rich"): (5, "delegate"), ("ok", "ok"): (6, "cost"), ("ok", "lean"): (7, "cost"), ("ok", "tight"): (8, "small-only"),
      ("tight", "rich"): (9, "delegate"), ("tight", "ok"): (10, "delegate"), ("tight", "lean"): (11, "hold"), ("tight", "tight"): (12, "hold")}
 WEEK = 7 * 86400
+WORK = {"direct": {"n": 12, "ok": 11}, "dispatch": {"n": 5, "ok": 4, "basis": "first-attempt-per-task"}, "active": 2, "review": {"verdicts": 1, "memory": 3}}
 
 
 def history(snap):
@@ -112,6 +114,10 @@ def build_site(sc, out, now):
         json.dump(snap, fh, ensure_ascii=False, indent=1)
     with open(os.path.join(out, "data", "history.jsonl"), "w") as fh:
         fh.writelines(json.dumps(r) + "\n" for r in history(snap))
+    work = sc.get("work", {})
+    if work is not None:
+        with open(os.path.join(out, "data", "work.json"), "w") as fh:
+            json.dump({"generated_at": snap["generated_at"], **WORK, **work}, fh)
 
 
 def main(argv):

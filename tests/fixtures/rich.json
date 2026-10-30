@@ -3,6 +3,6 @@
  "claude": {"five_used": 10, "five_reset_in": 3600, "week_used": 43, "week_reset_in": 127008, "updated_ago": 0},
  "codex": {"five_used": 10, "week_used": 43, "five_reset_in": 3600, "week_reset_in": 127008},
  "reserves": {"cards": [], "credits": []},
- "expect": {"mode": {"mode": "1", "hub": "opus", "route": "delegate", "subagent": "sonnet", "claude": "rich", "codex": "rich", "override": "-", "card": "-"},
+ "expect": {"effort": null, "mode": {"mode": "1", "hub": "opus", "route": "delegate", "subagent": "sonnet", "claude": "rich", "codex": "rich", "override": "-", "card": "-"},
             "action": ["預設自己做", "Opus"]}
 }

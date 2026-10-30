@@ -78,11 +78,16 @@ for (const name of names) {
         cmd: document.querySelector('#cmds .cmd')?.dataset.copy,
         chipText: [...q('#chips .chip')].map(e => e.textContent),
                 solo: $('lower').classList.contains('solo'), resets: q('#chart .resets line.reset').length,
+        work: { tiles: [...q('#work .wt')].map(e => e.innerText.replace(/\n/g, ' ')), empty: $('work').innerText },
+        eff: document.querySelector('#cmds .eff')?.dataset.effort ?? null,
+        lastCycles: [...q('#providers .last-cycle')].map(e => ({ tag: e.dataset.tag, text: e.textContent })),
       };
     });
+    r.snapEffort = await page.evaluate(() => fetch('data/snapshot.json').then(x => x.json()).then(j => j.effort));
     const want = sc.expect.mode, providers = ['claude', 'codex'].filter(p => sc[p]).length;
     const cards = sc.reserves?.cards || [], items = cards.length + (sc.reserves?.credits || []).length;
     const age = sc.snapshot_age || 0, stale = age > 90 * 60, degraded = age > 6 * 3600;
+    if (sc.work === null) errors.splice(0, errors.length, ...errors.filter(e => !/work\.json|404 \(File not found\)|status of 404/.test(e)));   // 情境刻意沒有 work.json
     check(`${t}：無 JS error／載入失敗`, errors.length === 0 && r.state === 'ok' && !r.statusVisible, errors.join(' | ') || `state=${r.state}`);
     check(`${t}：行動卡在最上方、有標題與 1–3 句建議`, r.actionTop < 200 && r.headline.length > 4 && r.todo.length >= 1 && r.todo.length <= 3, JSON.stringify({ top: r.actionTop, headline: r.headline, todo: r.todo }));
     const miss = (sc.expect.action || []).filter(s => !r.action.includes(s));
@@ -149,6 +154,21 @@ for (const name of names) {
     check(`${t}：chip 標明 7d`, r.chipText.filter(x => x.includes('7d')).length === 2, JSON.stringify(r.chipText));
     check(`${t}：卷區塊${items ? '並排' : '收成一行'}`, r.solo === !items, String(r.solo));
     check(`${t}：趨勢圖標出週期重置`, r.resets >= 1, String(r.resets));
+    // --- 第三批：工作量（work.json）、主控 effort、上週期結算 ---
+    if (sc.work === null) check(`${t}：沒有 work.json → 工作量顯示「還沒接上」`, !r.work.tiles.length && r.work.empty.includes('還沒接上'), JSON.stringify(r.work));
+    else {
+      const W = { direct: { n: 12, ok: 11 }, dispatch: { n: 5, ok: 4 }, review: { verdicts: 1, memory: 3 }, ...(sc.work || {}) };
+      const wantTiles = [W.direct.n ? `${W.direct.ok}/${W.direct.n}` : '近 7 天沒有', W.dispatch.n ? `${W.dispatch.ok}/${W.dispatch.n}` : '近 7 天沒有', '件',
+        W.review ? `裁決 ${W.review.verdicts} · memory ${W.review.memory}` : '還沒接上'];
+      check(`${t}：工作量 4 格 ${JSON.stringify(wantTiles)}`, r.work.tiles.length === 4 && wantTiles.every((x, i) => r.work.tiles[i].includes(x)), JSON.stringify(r.work.tiles));
+    }
+    if ('effort' in sc.expect) check(`${t}：snapshot.effort = ${sc.expect.effort}`, r.snapEffort === sc.expect.effort, String(r.snapEffort));
+    const low = r.snapEffort === 'low';
+    check(`${t}：主控 effort ${want.hub === 'opus' ? (low ? 'low' : '預設') : '不顯示（Sonnet）'}`,
+      r.eff === (want.hub === 'opus' ? (low ? 'low' : 'default') : null) && low === r.todo.some(x => x.includes('effort low')) && low === r.reasons.some(x => x.startsWith('主控') && x.includes('effort low')),
+      JSON.stringify({ eff: r.eff, snapEffort: r.snapEffort, todo: r.todo }));
+    const lc = ['claude', 'codex'].filter(p => sc[p]);
+    check(`${t}：上週期結算 ${lc.length} 行、合成歷史的上週期剩很多 → 浪費`, r.lastCycles.length === lc.length && r.lastCycles.every(x => x.tag === 'waste' && /^上週期 \d+\/\d+ 結束時剩 \d+%：浪費/.test(x.text)), JSON.stringify(r.lastCycles));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
     await page.close();
   }
@@ -179,6 +199,23 @@ for (const vp of VIEWPORTS) {
   });
   check(`趨勢文字避讓/${vp.tag}：3 個重置標籤＋2 個線尾標籤互不重疊、不出圖；日期不擠在一起`, errors.length === 0 && r.n === 5 && !r.hit.length && !r.out.length && r.dates >= 3 && !r.dateHit, JSON.stringify({ errors, ...r }));
   if (SHOTS) await page.locator('#chart').screenshot({ path: `${SHOTS}/trend-labels-${vp.tag}.png` });
+  await page.close();
+}
+
+// --- 上週期結算：注入歷史，Claude 自然結束只剩 2%（見底，最後讀數離結束 8 小時）、Codex 提前重置（不算浪費）---
+{
+  const now = Math.floor(Date.now() / 1000), D = 86400, WEEK = 7 * D, E = now - D, X = now - 1.5 * D, due = now + 2 * D, rows = [];
+  for (let t = now - 3 * D; t <= now; t += 1800) {
+    const ce = t < E ? 100 - 100 * (E - t) / WEEK : 100 * (t - E) / WEEK, cu = t < E ? 98 : ce;
+    const xe = t < X ? 100 - 100 * (due - t) / WEEK : 100 * (t - X) / WEEK, xu = t < X ? 50 : xe / 2;
+    const skipC = t < E && t > E - 8 * 3600;
+    rows.push({ t, mode: 6, ct: 'ok', xt: 'ok', override: '-', card: '-', c5: 10, x5: 10, x7: xu, xs: xe - xu, ...(skipC ? { c7: null, cs: null } : { c7: cu, cs: ce - cu }) });
+  }
+  const body = rows.map(r => JSON.stringify(r)).join('\n') + '\n';
+  const { page, errors } = await open(`${base}/${names[0]}/`, VIEWPORTS[0], page => page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body })));
+  const lc = await page.evaluate(() => [...document.querySelectorAll('#providers .last-cycle')].map(e => ({ tag: e.dataset.tag, text: e.textContent })));
+  check('上週期結算：自然結束剩 2% → 見底＋讀數間隔註記', errors.length === 0 && lc[0]?.tag === 'empty' && /剩 2%：見底/.test(lc[0].text) && /離結束 8 小時/.test(lc[0].text), JSON.stringify({ errors, lc }));
+  check('上週期結算：提前重置 → 不算浪費', lc[1]?.tag === 'early' && lc[1].text.includes('提前重置'), JSON.stringify(lc));
   await page.close();
 }
 
