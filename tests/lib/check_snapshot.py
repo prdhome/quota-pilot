@@ -12,7 +12,7 @@ num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
 snap = json.load(open(sys.argv[1]))
 sc = json.load(open(sys.argv[2])) if len(sys.argv) > 2 else None
 
-need(set(snap) == {"generated_at", "mode", "explain", "claude", "codex", "cards", "credits", "detail"}, f"top-level keys {sorted(snap)}")
+need(set(snap) == {"generated_at", "mode", "explain", "claude", "codex", "cards", "credits", "detail", "effort"}, f"top-level keys {sorted(snap)}")
 need(isinstance(snap.get("generated_at"), int) and abs(snap["generated_at"] - time.time()) < 300, f"generated_at {snap.get('generated_at')!r} 不是現在的整數 epoch")
 m = snap.get("mode")
 need(isinstance(m, dict) and list(m) == ["mode", "hub", "route", "subagent", "claude", "codex", "override", "card"], f"mode keys {m!r}")
@@ -21,6 +21,7 @@ if isinstance(m, dict):
     need(m.get("hub") in ("opus", "sonnet") and m.get("subagent") in ("opus", "sonnet"), f"hub/subagent {m.get('hub')}/{m.get('subagent')}")
     need(m.get("route") in ("delegate", "cost", "direct", "no-codex", "small-only", "hold"), f"route {m.get('route')!r}")
     need(m.get("claude") in ("rich", "ok", "tight") and m.get("codex") in ("rich", "ok", "lean", "tight", "unknown"), f"tiers {m.get('claude')}/{m.get('codex')}")
+need(snap.get("effort") in ("low", None) and not (snap.get("effort") and (m or {}).get("hub") != "opus"), f"effort {snap.get('effort')!r}（只有 opus 中間檔才是 low）")
 need(isinstance(snap.get("explain"), list) and snap["explain"] and all(isinstance(s, str) for s in snap["explain"]), "explain 應為非空字串陣列")
 
 def window(w, where):
@@ -43,6 +44,7 @@ need(isinstance(snap.get("credits"), list) and all(isinstance(c, dict) and list(
 if sc:
     want = sc.get("expect", {})
     if "mode" in want: need(m == want["mode"], f"mode\n  want {want['mode']}\n  got  {m}")
+    if "effort" in want: need(snap.get("effort") == want["effort"], f"effort want {want['effort']!r} got {snap.get('effort')!r}")
     if "explain_contains" in want: need(any(want["explain_contains"] in s for s in snap.get("explain") or []), f"explain 沒有 {want['explain_contains']!r}")
     need((snap.get("claude") is None) == (sc.get("claude") is None), "claude 有無與情境不符")
     need((snap.get("codex") is None) == (sc.get("codex") is None), "codex 有無與情境不符")
