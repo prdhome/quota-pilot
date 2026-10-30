@@ -6,6 +6,7 @@
   fixture.py state <情境> <輸出目錄>   寫 state/rate_limits.json、state/quota-reserves.json、state/codex.tsv（Codex 讀不到時為 "-"）
   fixture.py site  <情境> <輸出目錄>   state ＋ 複製 site/ ＋ 用 bin/snapshot.sh 產生 data/snapshot.json ＋ 合成 7 天 data/history.jsonl
                                        ＋ data/work.json（格式同 bin/work-stats.sh；情境的 "work" 欄覆寫預設值，設 null＝不產生）
+                                       ＋ data/tokens.json（格式同 bin/token-stats.sh，近 10 天 4 個模型，其中 gpt-9-test 沒有單價；情境設 "tokens": null＝不產生）
   fixture.py list                       列出情境與說明
 
 <情境> 可以是名稱（rich）或檔案路徑。不讀也不寫任何真實額度檔（HOME 指向輸出目錄內的空資料夾）。
@@ -114,6 +115,14 @@ def build_site(sc, out, now):
         json.dump(snap, fh, ensure_ascii=False, indent=1)
     with open(os.path.join(out, "data", "history.jsonl"), "w") as fh:
         fh.writelines(json.dumps(r) + "\n" for r in history(snap))
+    if sc.get("tokens", {}) is not None:
+        rows = []
+        for i in range(10):
+            d = time.strftime("%Y-%m-%d", time.localtime(now - i * 86400))
+            for p, m, k in (("claude", "claude-opus-5-5", 3), ("claude", "claude-sonnet-5-5", 1), ("codex", "gpt-6.1-sol", 2), ("codex", "gpt-9-test", 1)):
+                rows.append({"d": d, "p": p, "m": m, "n": 20 * k, "s": k, "in": 40000 * k, "out": 90000 * k, "cr": 2000000 * k, "cw5": 100000 * k, "cw1h": 0})
+        with open(os.path.join(out, "data", "tokens.json"), "w") as fh:
+            json.dump({"generated_at": snap["generated_at"], "days": 14, "rows": rows, "skipped": {"claude_lines": 0, "codex_lines": 0, "codex_no_model": 0}}, fh)
     work = sc.get("work", {})
     if work is not None:
         with open(os.path.join(out, "data", "work.json"), "w") as fh:

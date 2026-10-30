@@ -85,6 +85,8 @@ for (const name of names) {
         lastCycles: [...q('#providers .last-cycle')].map(e => ({ tag: e.dataset.tag, text: e.textContent })),
         stab: (b => b && { max: +b.dataset.max, flaps: +b.dataset.flaps, tiles: b.querySelectorAll('.wt').length })(document.querySelector('#stability .stab')),
         stabLevel: document.querySelector('#stability .stab-verdict')?.dataset.level,
+        tok: { tiles: q('#tokens .wt').length, text: $('tokens').innerText, days: q('#tokens-chart .tok-day').length, bars: q('#tokens-chart rect.tok-c, #tokens-chart rect.tok-x').length,
+          models: [...q('#tokens-table tr[data-model]')].map(e => e.dataset.model), note: $('tokens-note').textContent },
         ce: $('card-effect').hidden ? null : [...q('#card-effect li')].map(e => e.dataset.tag),
         peaks: [...q('#peaks .peak')].map(b => ({ p: b.dataset.p, rows: b.querySelectorAll('.heat .dl').length, cells: b.querySelectorAll('.heat .c').length,
           sev: [...b.querySelectorAll('.heat .c')].map(c => c.dataset.sev).filter(Boolean).length, note: b.querySelector('.peak-note')?.textContent || '' })),
@@ -94,7 +96,7 @@ for (const name of names) {
     const want = sc.expect.mode, providers = ['claude', 'codex'].filter(p => sc[p]).length;
     const cards = sc.reserves?.cards || [], items = cards.length + (sc.reserves?.credits || []).length;
     const age = sc.snapshot_age || 0, stale = age > 90 * 60, degraded = age > 6 * 3600;
-    if (sc.work === null) errors.splice(0, errors.length, ...errors.filter(e => !/work\.json|404 \(File not found\)|status of 404/.test(e)));   // 情境刻意沒有 work.json
+    if (sc.work === null || sc.tokens === null) errors.splice(0, errors.length, ...errors.filter(e => !/work\.json|tokens\.json|404 \(File not found\)|status of 404/.test(e)));   // 情境刻意沒有 work.json／tokens.json
     check(`${t}：無 JS error／載入失敗`, errors.length === 0 && r.state === 'ok' && !r.statusVisible, errors.join(' | ') || `state=${r.state}`);
     check(`${t}：行動卡在最上方、有標題與 1–3 句建議`, r.actionTop < 200 && r.headline.length > 4 && r.todo.length >= 1 && r.todo.length <= 3, JSON.stringify({ top: r.actionTop, headline: r.headline, todo: r.todo }));
     const miss = (sc.expect.action || []).filter(s => !r.action.includes(s));
@@ -177,6 +179,10 @@ for (const name of names) {
     const lc = ['claude', 'codex'].filter(p => sc[p]);
     check(`${t}：上週期結算 ${lc.length} 行、合成歷史的上週期剩很多 → 浪費`, r.lastCycles.length === lc.length && r.lastCycles.every(x => x.tag === 'waste' && /^上週期 \d+\/\d+ 結束時剩 \d+%：浪費/.test(x.text)), JSON.stringify(r.lastCycles));
     check(`${t}：5h 尖峰熱圖 2 張、每列 24 格、有摘要`, r.peaks.length === 2 && r.peaks.every(x => !sc[x.p] ? true : x.rows >= 1 && x.cells === x.rows * 24 && x.sev > 0 && /5h (偏低多在 \d+–\d+ 時|沒有偏低)/.test(x.note)), JSON.stringify(r.peaks.map(({ sev, ...x }) => x)));
+    if (sc.tokens === null) {
+      errors.splice(0, errors.length, ...errors.filter(e => !/tokens\.json|404 \(File not found\)|status of 404/.test(e)));
+      check(`${t}：沒有 tokens.json → Token 區塊顯示「還沒接上」`, r.tok.tiles === 0 && r.tok.text.includes('還沒接上'), JSON.stringify(r.tok));
+    } else check(`${t}：Token 用量 3 格、14 天長條、4 個模型明細、沒有單價的模型有註明`, r.tok.tiles === 3 && r.tok.days === 14 && r.tok.bars >= 18 && r.tok.models.length === 4 && r.tok.note.includes('gpt-9-test') && r.tok.models[r.tok.models.length - 1] === 'gpt-9-test', JSON.stringify(r.tok));
     const deadCards = cards.filter(c => c.used_at || c.expires_in <= 0).length;
     check(`${t}：用卷效果${deadCards ? ` ${deadCards} 筆` : '不顯示（沒有已用或過期的卷）'}`, deadCards ? r.ce?.length === deadCards : r.ce === null, JSON.stringify(r.ce));
     check(`${t}：規則穩定度 3 格＋判讀（warn ⇔ 單日 ≥6 或來回 ≥3）`, r.stab && r.stab.tiles === 3 && r.stabLevel === (r.stab.max >= 6 || r.stab.flaps >= 3 ? 'warn' : 'ok'), JSON.stringify({ stab: r.stab, level: r.stabLevel }));
@@ -203,6 +209,29 @@ for (const name of names) {
       errors.length === 0 && r[0]?.hit === '14-17' && m && m[2] === m[3] && +m[2] >= 9 && +m[2] <= +m[1] && r[0].warn === 0 && r[0].crit >= 27
         && r[1]?.hit === '' && r[1].note.includes('沒有偏低') && !r[0].hscroll, JSON.stringify({ errors, r }));
     if (SHOTS) await page.locator('#peaks').screenshot({ path: `${SHOTS}/peaks-${vp.tag}.png` });
+    await page.close();
+  }
+}
+
+// --- Token 估算金額：注入已知 token 數，對照官方單價算出的金額（Opus 5.5 各 1M → 4+20+0.2+5+8＝37.2；gpt-6.1-sol 各 1M → 2+10+0.1＝12.1；帶日期與 [1m] 的名稱也要對到單價）---
+{
+  const d = (() => { const x = new Date(); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; })(), M = 1e6;
+  const body = JSON.stringify({ generated_at: Math.floor(Date.now() / 1000), days: 14, skipped: { claude_lines: 0, codex_lines: 2, codex_no_model: 0 }, rows: [
+    { d, p: 'claude', m: 'claude-opus-5-5', n: 1, s: 1, in: M, out: M, cr: M, cw5: M, cw1h: M },
+    { d, p: 'codex', m: 'gpt-6.1-sol', n: 1, s: 1, in: M / 2, out: M, cr: M, cw5: 0, cw1h: 0 },
+    { d, p: 'codex', m: 'gpt-6.1-sol-2026-09-01', n: 1, s: 1, in: M / 2, out: 0, cr: 0, cw5: 0, cw1h: 0 },
+    { d, p: 'claude', m: 'claude-haiku-5-5[1m]', n: 1, s: 1, in: 0, out: 0, cr: 0, cw5: 0, cw1h: 0 },
+    { d, p: 'codex', m: 'mystery-model', n: 3, s: 1, in: M, out: M, cr: 0, cw5: 0, cw1h: 0 }] });
+  for (const vp of VIEWPORTS) {
+    const { page, errors } = await open(`${base}/${names[0]}/`, vp, page => page.route('**/data/tokens.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body })));
+    const r = await page.evaluate(() => ({ week: document.querySelector('#tokens .wt[data-k="week"]').innerText.replace(/\n/g, ' '), today: document.querySelector('#tokens .wt[data-k="today"]').innerText.replace(/\n/g, ' '),
+      rows: [...document.querySelectorAll('#tokens-table tr[data-model]')].map(e => [...e.cells].map(c => c.textContent).join('|')), note: document.getElementById('tokens-note').textContent,
+      hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
+    check(`Token 估算/${vp.tag}：近 7 天 US$49.30（Claude US$37.20 · Codex US$12.10）、今天 US$49.30`, r.week.includes('US$49.30') && r.week.includes('Claude US$37.20') && r.week.includes('Codex US$12.10') && r.today.includes('US$49.30'), JSON.stringify(r));
+    check(`Token 估算/${vp.tag}：帶日期／[1m] 的名稱對到單價、未知模型標「沒有單價」、略過計數有寫出、無水平捲動`,
+      errors.length === 0 && r.rows.some(x => x.startsWith('gpt-6.1-sol-2026-09-01') && x.endsWith('US$1.00')) && r.rows.some(x => x.startsWith('claude-haiku-5-5[1m]') && x.endsWith('US$0.00'))
+        && r.rows.some(x => x.startsWith('mystery-model') && x.endsWith('沒有單價')) && r.note.includes('mystery-model') && r.note.includes('codex_lines 2') && !r.hscroll, JSON.stringify({ errors, r }));
+    if (SHOTS) await page.locator('#tokens-card').screenshot({ path: `${SHOTS}/tokens-${vp.tag}.png` });
     await page.close();
   }
 }

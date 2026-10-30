@@ -29,6 +29,8 @@ jobs:
         run: bash tests/analyze-test.sh
       - name: Work-stats tests
         run: bash tests/work-stats-test.sh
+      - name: Token-stats tests
+        run: bash tests/token-stats-test.sh
       - name: Publish failure tests
         run: bash tests/publish-test.sh
 

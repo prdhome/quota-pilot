@@ -35,6 +35,7 @@ Claude Code ＋ Codex 訂閱額度的動態調度：依兩邊 5h／7d 用量與�
 - 行動卡下方「今天可用」：週剩 ÷ 剩餘天數＝今天大約可用的週額度 %；跟平均每天 14%（100/7）比較：差距在 1 個百分點內標「約平均」（`ACTION.budget.avgTol`），否則標寬或緊。週期 24 小時內重置時，改成「剩下的今天用完」。
 - 每邊額度卡底下的燃燒曲線：實線＝本週期的週已用 %；虛線＝照週期進度（對角線）；點線＝照目前平均速度推估到週期結束，下面一句話寫出「約幾點見底」或「結束時約剩幾 %」。推估假設之後照目前速度用，遇到非排程 reset 會不準。
 - 每邊額度卡的週盈餘底下一行「上週期」：歷史（保留 14 天）裡最近一次週期結束時剩多少。判準跟 `bin/analyze.py` 一樣：剩 ≥20% 標「浪費」、≤3% 標「見底」，最後讀數離結束超過 6 小時加註；提前重置（用卷或供應商重置）不算浪費。門檻在 `ACTION.lastCycle`。
+- 「Token 用量（近 14 天，API 價格估算）」：讀 `data/tokens.json`（`bin/token-stats.sh`），三格＝近 7 天估算（分 Claude／Codex）、近 7 天日均、今天；長條圖＝每天估算金額（Claude 在下、Codex 疊上）；「各模型明細」列出每個模型的請求數、未快取輸入、輸出、快取讀寫與估算金額。金額是照官方 API 單價估的，不是帳單（訂閱不按 token 收費），用來比較模型與每天的用量規模。單價表在 `site/index.html` 的 `PRICES`（註明來源與查價日期 `PRICES_AS_OF`），官方調價時只改那裡；對不到單價的模型標「沒有單價」、不計入金額。沒有 `tokens.json` 時顯示「還沒接上」。
 - 「重置卷與點數到期」底下的「用卷效果」（有已用或過期的卷才顯示）：每張已用卷在 used_at 前後 6 小時內找週已用的最大降幅，寫「用時週剩 Y%，回補 X%」並標時機：週剩 ≤10%（`ACTION.cardUseLeft`）＝時機好、離到期 ≤48 小時＝到期前用掉、其餘＝偏早；降幅不到 10 點標「讀數沒下降」（卷可能沒生效或 used_at 記錯），超出 14 天歷史標「無法評估」。附「建議出現後幾小時才用」（從 history 的 `card` 欄找）或「沒有建議就用了」。過期沒用的卷標「浪費一張」，並列出上次用卷後到到期前有幾筆用卷建議。門檻在 `ACTION.cardEffect`。
 - 「工作量（近 7 天）」：讀 `data/work.json`（`bin/work-stats.sh`），四格＝直做通過數、派工 Codex 首次成功數、進行中任務、週回顧待處理（裁決＋memory）。少於 5 件標「樣本少」（`ACTION.work.minN`）；統計超過 90 分鐘沒更新標過期；沒有 `work.json`（orchestrator 沒接上）整塊顯示「還沒接上」，不影響其他區塊。
 - 7d 模式矩陣：格子顏色越深＝過去 7 天停在那一格越久（格內小字是占比）；折線＝最近 24 小時走過的模式，終點（藍點）是現在。
@@ -46,6 +47,7 @@ Claude Code ＋ Codex 訂閱額度的動態調度：依兩邊 5h／7d 用量與�
 
 ## 資料流
 本機 launchd 每 30 分鐘：`bin/publish.sh` → `bin/snapshot.sh`（讀 `~/.claude/state/rate_limits.json`、`codex-quota.sh`、`quota-reserves.json`）→ 推到 `gh-pages` 分支的 `data/`。不耗任何 LLM token；只發佈用量 %、重置時間、模式與卷到期日。
+另外兩份選配資料，產生失敗就沿用上一份：`bin/work-stats.sh` → `data/work.json`（orchestrator 的任務次數）；`bin/token-stats.sh` → `data/tokens.json`（讀 `~/.claude/projects/**/*.jsonl` 與 `~/.codex/sessions/**/rollout-*.jsonl`，只輸出每天 × 每個模型的請求數、session 數與 token 加總，不含路徑、session id 或對話內容）。
 
 ```bash
 tests/policy-test.sh          # 規則回歸測試（假資料）
@@ -61,6 +63,7 @@ bin/install-launchd.sh        # 安裝每 30 分鐘推送
 bash tests/policy-test.sh     # 規則回歸測試（pick-model／quota-mode）
 bash tests/snapshot-test.sh   # 每組情境跑 bin/snapshot.sh，檢查 JSON 結構與模式判定
 bash tests/analyze-test.sh    # bin/analyze.py 校準報告（tests/fixtures/history/ 假歷史）
+bash tests/token-stats-test.sh  # bin/token-stats.sh（假的 Claude Code／Codex 紀錄：去重、cache 5m／1h、累計相減、不洩漏路徑）
 bash tests/web-smoke.sh       # 儀表板冒煙測試（Playwright＋Chromium，桌機／手機 375px；行動卡文案、三種錯誤狀態）
 SHOTS=/tmp/shots bash tests/web-smoke.sh   # 同上，另存每組情境的截圖
 bin/preview.sh                # 列出情境
@@ -71,7 +74,7 @@ bin/preview.sh override-5h    # 用該情境的假資料開預覽 http://127.0.0
 - `snapshot.sh` 測試用 `QP_CODEX_TSV` 注入 Codex 讀數（CI 沒有 codex CLI；設成 `-` = 讀不到）；未設時照舊呼叫 `codex-quota.sh --cached`。
 - 新增情境：在 `tests/fixtures/` 加一個 JSON（照現有格式，`expect.mode` 寫預期判定、`expect.action` 寫行動卡必須出現的字；可選 `expect.effort` 寫預期的 `low`／`null`），三個測試與預覽都會自動納入。
 - 假網站預設會產生一份 `data/work.json`；情境的 `work` 欄覆寫部分欄位，設 `null`＝不產生（測「還沒接上」）。
-- GitHub Actions（`.github/workflows/ci.yml`）在 push 到 main 與每個 PR 跑上面四個測試。
+- GitHub Actions（`.github/workflows/ci.yml`）在 push 到 main 與每個 PR 跑 tests/ 底下的全部測試。
 
 ## 校準流程
 歷史累積滿 7 天（最好跨過一次週期自然結束）後，用真實數據看門檻要不要調：
