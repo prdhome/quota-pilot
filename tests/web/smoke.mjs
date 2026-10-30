@@ -85,6 +85,7 @@ for (const name of names) {
         lastCycles: [...q('#providers .last-cycle')].map(e => ({ tag: e.dataset.tag, text: e.textContent })),
         stab: (b => b && { max: +b.dataset.max, flaps: +b.dataset.flaps, tiles: b.querySelectorAll('.wt').length })(document.querySelector('#stability .stab')),
         stabLevel: document.querySelector('#stability .stab-verdict')?.dataset.level,
+        ce: $('card-effect').hidden ? null : [...q('#card-effect li')].map(e => e.dataset.tag),
         peaks: [...q('#peaks .peak')].map(b => ({ p: b.dataset.p, rows: b.querySelectorAll('.heat .dl').length, cells: b.querySelectorAll('.heat .c').length,
           sev: [...b.querySelectorAll('.heat .c')].map(c => c.dataset.sev).filter(Boolean).length, note: b.querySelector('.peak-note')?.textContent || '' })),
       };
@@ -176,6 +177,8 @@ for (const name of names) {
     const lc = ['claude', 'codex'].filter(p => sc[p]);
     check(`${t}：上週期結算 ${lc.length} 行、合成歷史的上週期剩很多 → 浪費`, r.lastCycles.length === lc.length && r.lastCycles.every(x => x.tag === 'waste' && /^上週期 \d+\/\d+ 結束時剩 \d+%：浪費/.test(x.text)), JSON.stringify(r.lastCycles));
     check(`${t}：5h 尖峰熱圖 2 張、每列 24 格、有摘要`, r.peaks.length === 2 && r.peaks.every(x => !sc[x.p] ? true : x.rows >= 1 && x.cells === x.rows * 24 && x.sev > 0 && /5h (偏低多在 \d+–\d+ 時|沒有偏低)/.test(x.note)), JSON.stringify(r.peaks.map(({ sev, ...x }) => x)));
+    const deadCards = cards.filter(c => c.used_at || c.expires_in <= 0).length;
+    check(`${t}：用卷效果${deadCards ? ` ${deadCards} 筆` : '不顯示（沒有已用或過期的卷）'}`, deadCards ? r.ce?.length === deadCards : r.ce === null, JSON.stringify(r.ce));
     check(`${t}：規則穩定度 3 格＋判讀（warn ⇔ 單日 ≥6 或來回 ≥3）`, r.stab && r.stab.tiles === 3 && r.stabLevel === (r.stab.max >= 6 || r.stab.flaps >= 3 ? 'warn' : 'ok'), JSON.stringify({ stab: r.stab, level: r.stabLevel }));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
     await page.close();
@@ -202,6 +205,36 @@ for (const name of names) {
     if (SHOTS) await page.locator('#peaks').screenshot({ path: `${SHOTS}/peaks-${vp.tag}.png` });
     await page.close();
   }
+}
+
+// --- 用卷效果：換掉 snapshot 的卷並注入歷史，涵蓋 時機好（建議後 5 小時才用）／偏早（沒建議就用）／過期沒用（期間有建議）／超出歷史 ---
+{
+  const now = Math.floor(Date.now() / 1000), D = 86400, H = 3600, iso = t => new Date(t * 1000).toISOString();
+  const usedA = now - 2 * D, usedB = now - D, expC = now - D + 1800, rows = [];
+  for (let t = now - 10 * D; t <= now; t += 1800) {
+    const card = t >= usedA - 5 * H && t < usedA ? 'claude:use' : t >= expC - 6 * H && t <= expC ? 'claude:expiring' : '-';
+    rows.push({ t, mode: 1, ct: 'rich', xt: 'rich', hub: 'opus', override: '-', card, c5: 10, x5: 10, cs: 0, xs: 0,
+      c7: t < usedA - 6 * H ? 50 : t < usedA ? 94 : 3, x7: t < usedB ? 40 : 2 });
+  }
+  const snap = await (await fetch(`${base}/${names[0]}/data/snapshot.json`)).json();
+  snap.cards = [{ provider: 'claude', expires: iso(now + 5 * D), used_at: iso(usedA) }, { provider: 'codex', expires: iso(now + 10 * D), used_at: iso(usedB) },
+    { provider: 'claude', expires: iso(expC), used_at: null }, { provider: 'codex', expires: iso(now + 3 * D), used_at: iso(now - 20 * D) }];
+  const body = rows.map(r => JSON.stringify(r)).join('\n') + '\n';
+  const { page, errors } = await open(`${base}/${names[0]}/`, VIEWPORTS[1], async page => {
+    await page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body }));
+    await page.route('**/data/snapshot.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snap) }));
+  });
+  const r = await page.evaluate(() => ({ sum: document.querySelector('#card-effect .ce-sum')?.textContent || '',
+    items: Object.fromEntries([...document.querySelectorAll('#card-effect li')].map(e => [e.dataset.tag, e.textContent])),
+    hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
+  const it = r.items;
+  check('用卷效果：時機好＝用時週剩 6%、回補 91%、建議後 5 小時才用', /用時週剩 6%，回補 91%/.test(it.good || '') && /建議出現後 5 小時才用/.test(it.good), JSON.stringify(it.good));
+  check('用卷效果：偏早＝週剩 60% 就用、回補 38%、沒有建議', /用時週剩 60%，回補 38%/.test(it.early || '') && /週還剩 60% 就用/.test(it.early) && it.early.includes('沒有用卷建議'), JSON.stringify(it.early));
+  check('用卷效果：過期沒用＝浪費一張、只算上次用卷後的 13 筆建議', /到期沒用：浪費一張/.test(it.wasted || '') && /到期前有 13 筆用卷建議/.test(it.wasted), JSON.stringify(it.wasted));
+  check('用卷效果：超出歷史＝無法評估', /超出 14 天歷史/.test(it.old || ''), JSON.stringify(it.old));
+  check('用卷效果：摘要計數＋無 JS error／水平捲動', errors.length === 0 && !r.hscroll && ['時機好 1', '偏早 1', '無法評估 1', '過期沒用 1 張'].every(x => r.sum.includes(x)), JSON.stringify({ errors, sum: r.sum }));
+  if (SHOTS) await page.locator('#res-card').screenshot({ path: `${SHOTS}/card-effect-mobile.png` });
+  await page.close();
 }
 
 // --- 規則穩定度與 bin/analyze.py 一致：tests/fixtures/history 的假歷史平移到「現在」、只留最近 6.9 天，網頁與 analyze.py --json 各算一次（都用 UTC 日界）---
