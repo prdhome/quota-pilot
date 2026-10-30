@@ -87,6 +87,7 @@ for (const name of names) {
         stabLevel: document.querySelector('#stability .stab-verdict')?.dataset.level,
         tok: { tiles: q('#tokens .wt').length, text: $('tokens').innerText, days: q('#tokens-chart .tok-day').length, bars: q('#tokens-chart rect.tok-c, #tokens-chart rect.tok-x').length,
           models: [...q('#tokens-table tr[data-model]')].map(e => e.dataset.model), note: $('tokens-note').textContent },
+        credit: [...q('#reserves .credit-burn')].map(e => ({ level: e.dataset.level, text: e.textContent })),
         ce: $('card-effect').hidden ? null : [...q('#card-effect li')].map(e => e.dataset.tag),
         peaks: [...q('#peaks .peak')].map(b => ({ p: b.dataset.p, rows: b.querySelectorAll('.heat .dl').length, cells: b.querySelectorAll('.heat .c').length,
           sev: [...b.querySelectorAll('.heat .c')].map(c => c.dataset.sev).filter(Boolean).length, note: b.querySelector('.peak-note')?.textContent || '' })),
@@ -183,6 +184,7 @@ for (const name of names) {
       errors.splice(0, errors.length, ...errors.filter(e => !/tokens\.json|404 \(File not found\)|status of 404/.test(e)));
       check(`${t}：沒有 tokens.json → Token 區塊顯示「還沒接上」`, r.tok.tiles === 0 && r.tok.text.includes('還沒接上'), JSON.stringify(r.tok));
     } else check(`${t}：Token 用量 3 格、14 天長條、4 個模型明細、沒有單價的模型有註明`, r.tok.tiles === 3 && r.tok.days === 14 && r.tok.bars >= 18 && r.tok.models.length === 4 && r.tok.note.includes('gpt-9-test') && r.tok.models[r.tok.models.length - 1] === 'gpt-9-test', JSON.stringify(r.tok));
+    if (name === 'reserve-card') check(`${t}：點數 7 天從 US$30 用到 12.5 → 平均每天 US$2.50、比到期日早用完`, r.credit.length === 1 && r.credit[0].level === 'warn' && /近 7 天平均每天 US\$2\.50，照這速度約 \d+\/\d+ 用完，比到期日早 2[56] 天/.test(r.credit[0].text), JSON.stringify(r.credit));
     const deadCards = cards.filter(c => c.used_at || c.expires_in <= 0).length;
     check(`${t}：用卷效果${deadCards ? ` ${deadCards} 筆` : '不顯示（沒有已用或過期的卷）'}`, deadCards ? r.ce?.length === deadCards : r.ce === null, JSON.stringify(r.ce));
     check(`${t}：規則穩定度 3 格＋判讀（warn ⇔ 單日 ≥6 或來回 ≥3）`, r.stab && r.stab.tiles === 3 && r.stabLevel === (r.stab.max >= 6 || r.stab.flaps >= 3 ? 'warn' : 'ok'), JSON.stringify({ stab: r.stab, level: r.stabLevel }));
@@ -234,6 +236,22 @@ for (const name of names) {
     if (SHOTS) await page.locator('#tokens-card').screenshot({ path: `${SHOTS}/tokens-${vp.tag}.png` });
     await page.close();
   }
+}
+
+// --- 點數消耗速度：沒有紀錄／加值後重算（到期會剩）／餘額沒減少／最後更新太久 ---
+{
+  const now = Math.floor(Date.now() / 1000), D = 86400, iso = t => new Date(t * 1000).toISOString();
+  const snap = await (await fetch(`${base}/${names[0]}/data/snapshot.json`)).json();
+  const cr = (p, left, expD, log) => ({ provider: p, usd_left: left, usd_total: 100, expires: iso(now + expD * D), log: log.map(([ago, v]) => [now - ago * D, v]) });
+  snap.credits = [cr('claude', 50, 40, []), cr('codex', 96, 30, [[10, 50], [6, 40], [5, 100], [1, 96]]), cr('openai', 20, 50, [[3, 20], [1, 20]]), cr('gemini', 26, 60, [[9, 30], [5, 26]])];
+  const { page, errors } = await open(`${base}/${names[0]}/`, VIEWPORTS[1], page => page.route('**/data/snapshot.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snap) })));
+  const r = await page.evaluate(() => [...document.querySelectorAll('#reserves .res-row[data-kind="credit"]')].map(e => ({ label: e.querySelector('.tag').textContent, level: e.querySelector('.credit-burn')?.dataset.level, text: e.querySelector('.credit-burn')?.textContent || '' })));
+  const by = Object.fromEntries(r.map(x => [x.label.replace(/ .*/, '').replace('雲端點數', '') + x.label.match(/US\$(\d+)/)[1], x]));
+  check('點數速度：沒有紀錄 → 教怎麼用 quota-reserve.sh credit 記錄', by['50']?.level === 'none' && by['50'].text.includes('quota-reserve.sh credit claude'), JSON.stringify(by['50']));
+  check('點數速度：加值前的紀錄不算 → 近 4 天每天 US$1.00、到期約剩 US$65.00', by['96']?.level === 'waste' && /近 4 天平均每天 US\$1\.00，照這速度到期時約剩 US\$6[45]\.\d\d/.test(by['96'].text), JSON.stringify(by['96']));
+  check('點數速度：餘額沒減少', by['20']?.level === 'ok' && by['20'].text.includes('沒有減少'), JSON.stringify(by['20']));
+  check('點數速度：最後更新 5 天前要註明', by['26']?.text.includes('最後一次更新是 5 天前') && errors.length === 0, JSON.stringify({ errors, x: by['26'] }));
+  await page.close();
 }
 
 // --- 用卷效果：換掉 snapshot 的卷並注入歷史，涵蓋 時機好（建議後 5 小時才用）／偏早（沒建議就用）／過期沒用（期間有建議）／超出歷史 ---

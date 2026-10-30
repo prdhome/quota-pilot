@@ -115,6 +115,14 @@ eq "check：讀不到 Claude（QP_STATE 指向不存在的檔）" 1 "$(QP_STATE=
 printf '{"cards":[{"provider":"claude","expires":"2099-01-01T00:00:00+00:00","used_at":null}],"credits":[]}' > "$RESV"
 QP_STATE="$T/s.json" qr use claude >/dev/null
 eq "use：記下 QP_STATE 的週 reset 當 reset7_before" "$((R7+DAY*4))" "$(python3 -c 'import json,sys; print(int(json.load(open(sys.argv[1]))["cards"][0]["reset7_before"]))' "$RESV")"
+# credit：更新最早到期、未過期的那筆點數，追加 log；加值時 usd_total 跟著調高；沒有可用點數 → exit 非 0
+printf '{"cards":[],"credits":[{"provider":"claude","usd_left":50,"usd_total":50,"expires":"2000-01-01T00:00:00+00:00"},{"provider":"claude","usd_left":40,"usd_total":50,"expires":"2099-02-01T00:00:00+00:00"},{"provider":"claude","usd_left":30,"usd_total":50,"expires":"2099-01-01T00:00:00+00:00"}]}' > "$RESV"
+qr credit claude 25.5 >/dev/null && qr credit claude 60 >/dev/null
+cr() { python3 -I -c "import json,sys; c=json.load(open(sys.argv[1]))['credits']; print($1)" "$RESV"; }
+eq "credit：只動最早到期、未過期的那筆（過期與較晚到期的不動）" "50 40 60.0" "$(cr "c[0]['usd_left'], c[1]['usd_left'], c[2]['usd_left']" | tr -d '(),')"
+eq "credit：log 追加兩筆、加值後 usd_total 調高到 60" "[25.5, 60.0] 60.0" "$(cr "[e['usd_left'] for e in c[2]['log']], c[2]['usd_total']")"
+qr credit codex 1 >/dev/null 2>&1; eq "credit：沒有該 provider 的未過期點數 → exit 非 0" 1 $?
+qr credit claude abc >/dev/null 2>&1; eq "credit：餘額不是數字 → exit 非 0" 1 $?
 unset RESV
 
 # --- 門檻同步：網頁 ACTION.cardUseLeft ＝ quota-mode.sh CARD_USE_LEFT 預設值 ---
