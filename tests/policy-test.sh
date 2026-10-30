@@ -123,6 +123,14 @@ eq "credit：只動最早到期、未過期的那筆（過期與較晚到期的�
 eq "credit：log 追加兩筆、加值後 usd_total 調高到 60" "[25.5, 60.0] 60.0" "$(cr "[e['usd_left'] for e in c[2]['log']], c[2]['usd_total']")"
 qr credit codex 1 >/dev/null 2>&1; eq "credit：沒有該 provider 的未過期點數 → exit 非 0" 1 $?
 qr credit claude abc >/dev/null 2>&1; eq "credit：餘額不是數字 → exit 非 0" 1 $?
+# add-credit：session 要到期日；usage 可以沒有到期日，credit 也能更新它；同一 provider 已有未過期的不能重複加；舊資料沒寫 kind 照樣能 list
+printf '{"cards":[],"credits":[{"provider":"old","usd_left":5,"usd_total":10,"expires":"2099-01-01T00:00:00+00:00"}]}' > "$RESV"
+qr add-credit claude-cloud session 44 >/dev/null 2>&1; eq "add-credit：session 沒給到期日 → exit 非 0" 1 $?
+qr add-credit claude-cloud session 44 2099-11-05T15:59:00+08:00 >/dev/null && qr add-credit claude-usage usage 31.66 >/dev/null && qr credit claude-usage 30 >/dev/null
+eq "add-credit／credit：usage 沒有到期日、記兩筆、kind 正確" "usage None [31.66 30.0] session" "$(cr "c[2]['kind'], c[2]['expires'], [e['usd_left'] for e in c[2]['log']], c[1]['kind']" | tr -d "(),'")"
+qr add-credit claude-usage usage 10 >/dev/null 2>&1; eq "add-credit：同一 provider 已有未過期的 → exit 非 0" 1 $?
+qr add-credit x weird 1 >/dev/null 2>&1; eq "add-credit：kind 不是 session／usage → exit 非 0" 1 $?
+eq "list：使用量額度標「到期 無」、舊資料當雲端工作階段點數" "2" "$(qr list | grep -cE 'claude-usage 使用量額度 .*到期 無|old 雲端工作階段點數')"
 unset RESV
 
 # --- 門檻同步：網頁 ACTION.cardUseLeft ＝ quota-mode.sh CARD_USE_LEFT 預設值 ---
