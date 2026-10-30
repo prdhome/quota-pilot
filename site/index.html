@@ -137,6 +137,18 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .peak-note { font-size: 13px; margin: 8px 0 0; }
 .peak-note b { font-variant-numeric: tabular-nums; }
 .legend.heat-legend .sw { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+/* 用卷效果：已用卷的時機與回補量、過期沒用的卷 */
+.ce { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--grid); font-size: 13px; }
+.ce h3 { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0 0 4px; }
+.ce-sum { color: var(--ink-2); margin: 0 0 6px; }
+.ce ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ce li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: baseline; }
+.ce .ce-tag { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--ring); background: var(--surface-2); white-space: nowrap; }
+.ce li[data-tag="good"] .ce-tag, .ce li[data-tag="expiring"] .ce-tag { color: var(--good-text); border-color: var(--good); }
+.ce li[data-tag="early"] .ce-tag, .ce li[data-tag="nodrop"] .ce-tag { color: var(--ink); border-color: var(--warning); }
+.ce li[data-tag="wasted"] .ce-tag { color: var(--critical); border-color: var(--critical); }
+.ce li[data-tag="old"] .ce-tag { color: var(--muted); }
+.ce li small { grid-column: 2; color: var(--muted); font-size: 12px; }
 .eff { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 8px; margin-right: 6px; border-radius: 6px; border: 1px dashed var(--axis); color: var(--ink-2); }
 /* matrix */
 .lower { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
@@ -300,6 +312,7 @@ footer a { color: inherit; }
       <section class="card" id="res-card" aria-labelledby="h-res">
         <h2 id="h-res">重置卷與點數到期</h2>
         <div id="reserves"></div>
+        <div class="ce" id="card-effect" hidden></div>
       </section>
     </div>
 
@@ -379,6 +392,21 @@ const ACTION = {
     hit: (h, n, tot, crit) => [`5h 偏低多在 `, `${h} 時`, `：${tot} 天裡有 ${n} 天${crit ? `（其中 ${crit} 天見底）` : ''}。重工作可以避開這段，或提前交給另一邊。`],
     none: tot => `近 ${tot} 天 5h 沒有偏低（剩 <30%）。`,
     empty: '讀不到 5h 歷史。',
+  },
+  // 用卷效果：用卷前後 win 小時內找週已用的最大降幅（≥ minDrop 才算有回補，同 analyze.py「只歸零用量」）；
+  // 時機：用時週剩 ≤ cardUseLeft → 時機好；離到期 ≤ expiringH 小時 → 到期前用掉（同 quota-mode.sh expiring 48h）；其餘偏早
+  cardEffect: {
+    winH: 6, minDrop: 10, expiringH: 48, signalDays: 7,
+    tag: { good: '時機好', expiring: '到期前用掉', early: '偏早', nodrop: '讀數沒下降', old: '無法評估', wasted: '過期沒用' },
+    used: (name, when, left, gain) => `${name} 卷 ${when} 用：用時週剩 ${left}%，回補 ${gain}%`,
+    early: left => `週還剩 ${left}% 就用，回補的只有已用的部分；週剩 ${ACTION.cardUseLeft}% 以下再用最划算。`,
+    nodrop: (name, when) => `${name} 卷 ${when} 用，但前後 ${ACTION.cardEffect.winH} 小時內週用量沒有下降 ${ACTION.cardEffect.minDrop} 點以上：卷可能沒生效，或 used_at 記錯。`,
+    old: (name, when) => `${name} 卷 ${when} 用（超出 14 天歷史，無法評估）。`,
+    wasted: (name, date) => `${name} 卷 ${date} 到期沒用：浪費一張。`,
+    lag: h => h < 1 ? '建議出現後 1 小時內就用了。' : `建議出現後 ${Math.round(h)} 小時才用。`,
+    noSignal: '當時沒有用卷建議就用了。',
+    hadSignal: n => `到期前有 ${n} 筆用卷建議。`,
+    sum: (c, wasted) => `${Object.entries(c).map(([k, n]) => `${ACTION.cardEffect.tag[k]} ${n}`).join('、') || '沒有用過卷'}${wasted ? `；過期沒用 ${wasted} 張` : ''}`,
   },
   // 工作量格（data/work.json，由 bin/work-stats.sh 產生；只有次數）
   work: {
@@ -626,6 +654,7 @@ function render() {
   renderStability();
   renderPeaks();
   renderReserves();
+  renderCardEffect();
   renderWork();
   drawCharts();
 }
@@ -689,6 +718,37 @@ function renderStability() {
       tile('來回跳動', st.flaps, '次', `${S.flapH} 小時內 A→B→A`),
       tile('主控切換', st.hubMax, '次/天', 'Opus↔Sonnet 單日最多')),
     el('p', { class: 'stab-verdict', 'data-level': level }, text + (why && st.days < S.minDays ? `（${S.short(st.days.toFixed(1))}）` : '')));
+}
+
+// 用卷效果：每張已用卷（看前後讀數）與過期沒用的卷
+function cardEffectOf(c) {
+  const E = ACTION.cardEffect, k = (c.provider === 'codex' ? 'x' : 'c') + '7', now = nowS();
+  const exp = Date.parse(c.expires) / 1000, used = c.used_at ? Date.parse(c.used_at) / 1000 : NaN, name = NAME[c.provider] || c.provider;
+  const signal = r => (r.card || '').split(',').some(x => x === `${c.provider}:use` || x === `${c.provider}:expiring`);
+  if (!Number.isFinite(used)) {
+    if (!(exp <= now)) return null;
+    // 只算同一邊上一次用卷之後的建議（之前的建議已經用在那張卷上）
+    const from = Math.max(exp - E.signalDays * 86400, ...(snap.cards || []).filter(o => o.provider === c.provider && o.used_at).map(o => Date.parse(o.used_at) / 1000).filter(t => t < exp));
+    const n = hist.filter(r => r.t <= exp && r.t > from && signal(r)).length;
+    return { tag: 'wasted', t: exp, text: E.wasted(name, md(exp)), sub: n ? E.hadSignal(n) : '' };
+  }
+  const when = `${md(used)} ${hm(used)}`, pts = hist.filter(r => r[k] != null && Math.abs(r.t - used) <= E.winH * 3600).sort((a, b) => a.t - b.t);
+  if (!hist.length || hist[0].t > used - E.winH * 3600) return { tag: 'old', t: used, text: E.old(name, when) };
+  let best = null;
+  for (let i = 1; i < pts.length; i++) { const d = pts[i - 1][k] - pts[i][k]; if (!best || d > best.d) best = { d, u0: pts[i - 1][k] }; }
+  if (!best || best.d < E.minDrop) return { tag: 'nodrop', t: used, text: E.nodrop(name, when) };
+  const left = Math.round(100 - best.u0), first = hist.find(r => r.t <= used && r.t >= used - E.signalDays * 86400 && signal(r));
+  const tag = left <= ACTION.cardUseLeft ? 'good' : exp - used <= E.expiringH * 3600 ? 'expiring' : 'early';
+  return { tag, t: used, text: E.used(name, when, left, Math.round(best.d)), sub: [tag === 'early' ? E.early(left) : '', first ? E.lag((used - first.t) / 3600) : E.noSignal].filter(Boolean).join(' ') };
+}
+function renderCardEffect() {
+  const E = ACTION.cardEffect, items = (snap.cards || []).map(cardEffectOf).filter(Boolean).sort((a, b) => b.t - a.t);
+  $('card-effect').hidden = !items.length;
+  if (!items.length) return $('card-effect').replaceChildren();
+  const cnt = {};
+  for (const i of items) if (i.tag !== 'wasted') cnt[i.tag] = (cnt[i.tag] || 0) + 1;
+  $('card-effect').replaceChildren(el('h3', {}, '用卷效果'), el('p', { class: 'ce-sum' }, E.sum(cnt, items.filter(i => i.tag === 'wasted').length)),
+    el('ul', {}, ...items.map(i => el('li', { 'data-tag': i.tag }, el('span', { class: 'ce-tag' }, E.tag[i.tag]), el('span', {}, i.text), i.sub ? el('small', {}, i.sub) : null))));
 }
 
 // 5h 尖峰時段熱圖：列＝最近 days 天（舊→新）、欄＝0–23 時（瀏覽器時區），格＝該小時所有讀數的 5h 最高已用 %
