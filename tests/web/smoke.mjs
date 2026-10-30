@@ -87,7 +87,8 @@ for (const name of names) {
         stabLevel: document.querySelector('#stability .stab-verdict')?.dataset.level,
         tok: { tiles: q('#tokens .wt').length, text: $('tokens').innerText, days: q('#tokens-chart .tok-day').length, bars: q('#tokens-chart rect.tok-c, #tokens-chart rect.tok-x').length,
           models: [...q('#tokens-table tr[data-model]')].map(e => e.dataset.model), note: $('tokens-note').textContent },
-        credit: [...q('#reserves .credit-burn')].map(e => ({ level: e.dataset.level, text: e.textContent })),
+        credit: [...q('#reserves .res-row[data-kind="credit"] .credit-burn')].map(e => ({ level: e.dataset.level, text: e.textContent, label: e.closest('.res-row').querySelector('.tag').textContent })),
+        usage: [...q('#reserves .usage-row')].map(e => ({ p: e.dataset.p, head: e.querySelector('.res-head').textContent, level: e.querySelector('.credit-burn')?.dataset.level, text: e.querySelector('.credit-burn')?.textContent || '' })),
         ce: $('card-effect').hidden ? null : [...q('#card-effect li')].map(e => e.dataset.tag),
         peaks: [...q('#peaks .peak')].map(b => ({ p: b.dataset.p, rows: b.querySelectorAll('.heat .dl').length, cells: b.querySelectorAll('.heat .c').length,
           sev: [...b.querySelectorAll('.heat .c')].map(c => c.dataset.sev).filter(Boolean).length, note: b.querySelector('.peak-note')?.textContent || '' })),
@@ -95,7 +96,8 @@ for (const name of names) {
     });
     r.snapEffort = await page.evaluate(() => fetch('data/snapshot.json').then(x => x.json()).then(j => j.effort));
     const want = sc.expect.mode, providers = ['claude', 'codex'].filter(p => sc[p]).length;
-    const cards = sc.reserves?.cards || [], items = cards.length + (sc.reserves?.credits || []).length;
+    const usageN = (sc.reserves?.credits || []).filter(c => c.kind === 'usage').length;   // 使用量額度不上時間軸，另列
+    const cards = sc.reserves?.cards || [], items = cards.length + (sc.reserves?.credits || []).length - usageN;
     const age = sc.snapshot_age || 0, stale = age > 90 * 60, degraded = age > 6 * 3600;
     if (sc.work === null || sc.tokens === null) errors.splice(0, errors.length, ...errors.filter(e => !/work\.json|tokens\.json|404 \(File not found\)|status of 404/.test(e)));   // 情境刻意沒有 work.json／tokens.json
     check(`${t}：無 JS error／載入失敗`, errors.length === 0 && r.state === 'ok' && !r.statusVisible, errors.join(' | ') || `state=${r.state}`);
@@ -162,7 +164,7 @@ for (const name of names) {
     check(`${t}：Harness 提示${wantHarness ? '有（Codex CLI）' : '無'}`, wantHarness ? r.harness.includes('Codex CLI') && r.harness.includes('規則尚未納入') : !r.harness, r.harness);
     check(`${t}：可複製指令 /model ${want.hub}`, r.cmd === `/model ${want.hub}`, r.cmd);
     check(`${t}：chip 標明 7d`, r.chipText.filter(x => x.includes('7d')).length === 2, JSON.stringify(r.chipText));
-    check(`${t}：卷區塊${items ? '並排' : '收成一行'}`, r.solo === !items, String(r.solo));
+    check(`${t}：卷區塊${items || usageN ? '並排' : '收成一行'}`, r.solo === !(items || usageN), String(r.solo));
     check(`${t}：趨勢圖標出週期重置`, r.resets >= 1, String(r.resets));
     // --- 第三批：工作量（work.json）、主控 effort、上週期結算 ---
     if (sc.work === null) check(`${t}：沒有 work.json → 工作量顯示「還沒接上」`, !r.work.tiles.length && r.work.empty.includes('還沒接上'), JSON.stringify(r.work));
@@ -184,7 +186,10 @@ for (const name of names) {
       errors.splice(0, errors.length, ...errors.filter(e => !/tokens\.json|404 \(File not found\)|status of 404/.test(e)));
       check(`${t}：沒有 tokens.json → Token 區塊顯示「還沒接上」`, r.tok.tiles === 0 && r.tok.text.includes('還沒接上'), JSON.stringify(r.tok));
     } else check(`${t}：Token 用量 3 格、14 天長條、4 個模型明細、沒有單價的模型有註明`, r.tok.tiles === 3 && r.tok.days === 14 && r.tok.bars >= 18 && r.tok.models.length === 4 && r.tok.note.includes('gpt-9-test') && r.tok.models[r.tok.models.length - 1] === 'gpt-9-test', JSON.stringify(r.tok));
-    if (name === 'reserve-card') check(`${t}：點數 7 天從 US$30 用到 12.5 → 平均每天 US$2.50、比到期日早用完`, r.credit.length === 1 && r.credit[0].level === 'warn' && /近 7 天平均每天 US\$2\.50，照這速度約 \d+\/\d+ 用完，比到期日早 2[56] 天/.test(r.credit[0].text), JSON.stringify(r.credit));
+    if (name === 'reserve-card') check(`${t}：點數 7 天從 US$30 用到 12.5 → 平均每天 US$2.50、比到期日早用完`, r.credit.length === 1 && r.credit[0].label.startsWith('雲端工作階段點數') && r.credit[0].level === 'warn' && /近 7 天平均每天 US\$2\.50，照這速度約 \d+\/\d+ 用完，比到期日早 2[56] 天/.test(r.credit[0].text), JSON.stringify(r.credit));
+    if (name === 'reserve-card') check(`${t}：使用量額度另列（沒有到期日）：4 天從 US$40 扣到 31.66 → 扣了 US$8.34、有超出方案上限`,
+      r.usage.length === 1 && r.usage[0].head.includes('沒有到期日') && r.usage[0].head.includes('剩 US$31.66') && r.usage[0].level === 'warn'
+        && /近 4 天扣了 US\$8\.34（平均每天 US\$2\.0[89]）：有超出方案上限、在花已購買的額度，照這速度約 \d+\/\d+ 用完/.test(r.usage[0].text), JSON.stringify(r.usage));
     const deadCards = cards.filter(c => c.used_at || c.expires_in <= 0).length;
     check(`${t}：用卷效果${deadCards ? ` ${deadCards} 筆` : '不顯示（沒有已用或過期的卷）'}`, deadCards ? r.ce?.length === deadCards : r.ce === null, JSON.stringify(r.ce));
     check(`${t}：規則穩定度 3 格＋判讀（warn ⇔ 單日 ≥6 或來回 ≥3）`, r.stab && r.stab.tiles === 3 && r.stabLevel === (r.stab.max >= 6 || r.stab.flaps >= 3 ? 'warn' : 'ok'), JSON.stringify({ stab: r.stab, level: r.stabLevel }));
@@ -243,14 +248,18 @@ for (const name of names) {
   const now = Math.floor(Date.now() / 1000), D = 86400, iso = t => new Date(t * 1000).toISOString();
   const snap = await (await fetch(`${base}/${names[0]}/data/snapshot.json`)).json();
   const cr = (p, left, expD, log) => ({ provider: p, usd_left: left, usd_total: 100, expires: iso(now + expD * D), log: log.map(([ago, v]) => [now - ago * D, v]) });
-  snap.credits = [cr('claude', 50, 40, []), cr('codex', 96, 30, [[10, 50], [6, 40], [5, 100], [1, 96]]), cr('openai', 20, 50, [[3, 20], [1, 20]]), cr('gemini', 26, 60, [[9, 30], [5, 26]])];
+  snap.credits = [cr('claude', 50, 40, []), cr('codex', 96, 30, [[10, 50], [6, 40], [5, 100], [1, 96]]), cr('openai', 20, 50, [[3, 20], [1, 20]]), cr('gemini', 26, 60, [[9, 30], [5, 26]]),
+    { ...cr('claude-usage', 31.66, 0, []), kind: 'usage', expires: null }, { ...cr('extra-usage', 20, 0, [[6, 20], [2, 20]]), kind: 'usage', expires: null }];
   const { page, errors } = await open(`${base}/${names[0]}/`, VIEWPORTS[1], page => page.route('**/data/snapshot.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snap) })));
   const r = await page.evaluate(() => [...document.querySelectorAll('#reserves .res-row[data-kind="credit"]')].map(e => ({ label: e.querySelector('.tag').textContent, level: e.querySelector('.credit-burn')?.dataset.level, text: e.querySelector('.credit-burn')?.textContent || '' })));
-  const by = Object.fromEntries(r.map(x => [x.label.replace(/ .*/, '').replace('雲端點數', '') + x.label.match(/US\$(\d+)/)[1], x]));
+  const by = Object.fromEntries(r.map(x => [x.label.match(/US\$(\d+)/)[1], x]));   // 沒寫 kind 的舊資料當雲端工作階段點數，照樣上時間軸
   check('點數速度：沒有紀錄 → 教怎麼用 quota-reserve.sh credit 記錄', by['50']?.level === 'none' && by['50'].text.includes('quota-reserve.sh credit claude'), JSON.stringify(by['50']));
   check('點數速度：加值前的紀錄不算 → 近 4 天每天 US$1.00、到期約剩 US$65.00', by['96']?.level === 'waste' && /近 4 天平均每天 US\$1\.00，照這速度到期時約剩 US\$6[45]\.\d\d/.test(by['96'].text), JSON.stringify(by['96']));
   check('點數速度：餘額沒減少', by['20']?.level === 'ok' && by['20'].text.includes('沒有減少'), JSON.stringify(by['20']));
   check('點數速度：最後更新 5 天前要註明', by['26']?.text.includes('最後一次更新是 5 天前') && errors.length === 0, JSON.stringify({ errors, x: by['26'] }));
+  const u = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#reserves .usage-row')].map(e => [e.dataset.p, e.querySelector('.credit-burn').textContent])));
+  check('使用量額度：沒有紀錄 → 教怎麼記；沒有扣款 → 沒有超出方案上限', u['claude-usage']?.includes('quota-reserve.sh credit claude-usage') && u['extra-usage']?.includes('近 4 天沒有扣款（沒有超出方案上限）'), JSON.stringify(u));
+  check('點數速度：沒寫 kind 的舊資料都當雲端工作階段點數', r.length === 4 && r.every(x => x.label.startsWith('雲端工作階段點數')), JSON.stringify(r.map(x => x.label)));
   await page.close();
 }
 

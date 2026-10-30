@@ -162,6 +162,10 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .credit-burn[data-level="warn"]::before { content: "▲"; color: var(--warning); }
 .credit-burn[data-level="waste"]::before { content: "◆"; color: var(--warning); }
 .credit-burn b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.usage-credits { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--grid); }
+.usage-credits h3 { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0 0 2px; }
+.usage-credits .hint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+.usage-row { padding: 6px 0; }
 .eff { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 8px; margin-right: 6px; border-radius: 6px; border: 1px dashed var(--axis); color: var(--ink-2); }
 /* matrix */
 .lower { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
@@ -441,6 +445,12 @@ const ACTION = {
     waste: (d, rate, left) => ['waste', [`近 ${d} 天平均每天 `, rate, `，照這速度到期時約剩 `, left, `（不用就作廢）。`]],
     fine: (d, rate) => ['ok', [`近 ${d} 天平均每天 `, rate, `，照這速度到期前剛好用完。`]],
     stale: n => `（最後一次更新是 ${n} 天前）`,
+    // 使用量額度（kind=usage，已購買）：超過方案上限後才扣，沒有到期日也行 → 看「有沒有在扣、扣了多少」，不談浪費
+    usageTitle: '使用量額度（已購買）',
+    usageHint: '超過方案上限後才扣，花的是真錢；跟上面會到期的雲端工作階段點數分開算。',
+    usageNone: p => `還沒有足夠的餘額紀錄：用 quota-reserve.sh credit ${p} <餘額> 更新，記兩次（相隔 1 天以上）就看得出有沒有在扣。`,
+    usageFlat: d => `近 ${d} 天沒有扣款（沒有超出方案上限）。`,
+    usageSpend: (d, spent, rate, out) => ['warn', [`近 ${d} 天扣了 `, spent, `（平均每天 `, rate, `）：有超出方案上限、在花已購買的額度`, ...(out ? ['，照這速度約 ', out, ' 用完'] : []), '。']],
   },
   // 工作量格（data/work.json，由 bin/work-stats.sh 產生；只有次數）
   work: {
@@ -1152,10 +1162,11 @@ function renderReserves() {
   const now = nowS();
   const items = [
     ...(snap.cards || []).map(c => ({ kind: 'card', p: c.provider, t: Date.parse(c.expires) / 1000, used: !!c.used_at, label: `${NAME[c.provider] || c.provider} 重置卷` })),
-    ...(snap.credits || []).map(c => ({ kind: 'credit', p: c.provider, t: Date.parse(c.expires) / 1000, used: false, label: `雲端點數 US$${c.usd_left} / ${c.usd_total}`, c })),
+    ...(snap.credits || []).filter(c => c.kind !== 'usage').map(c => ({ kind: 'credit', p: c.provider, t: Date.parse(c.expires) / 1000, used: false, label: `雲端工作階段點數 US$${c.usd_left} / ${c.usd_total}`, c })),
   ].filter(i => Number.isFinite(i.t)).sort((a, b) => a.t - b.t);
-  $('lower').classList.toggle('solo', !items.length);
-  if (!items.length) return $('reserves').replaceChildren(el('p', { class: 'empty' }, '沒有登錄的重置卷或點數'));
+  const usage = usageCreditsEl();
+  $('lower').classList.toggle('solo', !items.length && !usage);
+  if (!items.length) return $('reserves').replaceChildren(...(usage ? [usage] : [el('p', { class: 'empty' }, '沒有登錄的重置卷或點數')]));
   const t0 = Math.min(now - 86400, ...items.map(i => i.t)), t1 = Math.max(now + 7 * 86400, ...items.map(i => i.t)) + 86400;
   const pct = t => (100 * (t - t0) / (t1 - t0)).toFixed(2) + '%';
   const axis = el('div', { class: 'tl-axis', 'aria-hidden': 'true' },
@@ -1172,17 +1183,35 @@ function renderReserves() {
           el('span', { class: 'left' + (!dead && left < ACTION.soonDays * 86400 ? ' soon' : '') }, i.used ? '已用' : left <= 0 ? '過期' : '剩 ' + fmtDays(left)))),
       lane, i.kind === 'credit' && !dead ? creditBurnEl(i.c) : null);
   });
-  $('reserves').replaceChildren(axis, ...rows);
+  $('reserves').replaceChildren(axis, ...rows, ...(usage ? [usage] : []));
+}
+// 使用量額度（已購買）：不畫時間軸（可能沒有到期日），每筆一列＋扣款速度
+function usageCreditsEl() {
+  const C = ACTION.credit, list = (snap.credits || []).filter(c => c.kind === 'usage' && !(Date.parse(c.expires) / 1000 <= nowS()));
+  if (!list.length) return null;
+  return el('div', { class: 'usage-credits' }, el('h3', {}, C.usageTitle), el('p', { class: 'hint' }, C.usageHint),
+    ...list.map(c => el('div', { class: 'usage-row', 'data-p': c.provider },
+      el('div', { class: 'res-head' }, el('span', { class: 'tag' }, el('span', { class: 'dot', style: 'background:var(--claude)' }), c.provider),
+        el('span', {}, el('span', { class: 'when' }, c.expires ? `${md(Date.parse(c.expires) / 1000)} 到期 · ` : '沒有到期日 · '), el('span', { class: 'left' }, `剩 US$${c.usd_left}`))),
+      usageBurnEl(c))));
+}
+function usageBurnEl(c) {
+  const C = ACTION.credit, b = creditBurnOf(c);
+  if (!b) return el('p', { class: 'credit-burn', 'data-level': 'none' }, C.usageNone(c.provider));
+  const stale = b.ageDays > C.staleDays ? C.stale(Math.floor(b.ageDays)) : '';
+  if (b.rate <= 0) return el('p', { class: 'credit-burn', 'data-level': 'ok' }, C.usageFlat(b.days) + stale);
+  const [level, parts] = C.usageSpend(b.days, el('b', {}, usd(b.spent)), el('b', {}, usd(b.rate)), b.out && b.out < b.exp ? el('b', {}, md(b.out)) : null);
+  return el('p', { class: 'credit-burn', 'data-level': level }, el('span', {}, ...parts, stale));
 }
 
 // 點數消耗速度：近 windowDays 天的餘額紀錄（加值後重算），平均每天花多少、何時用完、到期時會剩多少
 function creditBurnOf(c) {
-  const C = ACTION.credit, now = nowS(), exp = Date.parse(c.expires) / 1000;
+  const C = ACTION.credit, now = nowS(), exp = c.expires ? Date.parse(c.expires) / 1000 : Infinity;
   let pts = (c.log || []).filter(([t, v]) => t >= now - C.windowDays * 86400 && t <= now + 600 && Number.isFinite(v)).sort((a, b) => a[0] - b[0]);
   for (let i = pts.length - 1; i > 0; i--) if (pts[i][1] > pts[i - 1][1]) { pts = pts.slice(i); break; }   // 加值之前的不算
   if (pts.length < 2 || pts[pts.length - 1][0] - pts[0][0] < C.minDays * 86400) return null;
   const [t0, v0] = pts[0], [t1, v1] = pts[pts.length - 1], span = (t1 - t0) / 86400, rate = (v0 - v1) / span;
-  return { days: Math.max(1, Math.round(span)), rate, t1, v1, exp, out: rate > 0 ? t1 + v1 / rate * 86400 : null, ageDays: (now - t1) / 86400 };
+  return { days: Math.max(1, Math.round(span)), rate, spent: v0 - v1, t1, v1, exp, out: rate > 0 ? t1 + v1 / rate * 86400 : null, ageDays: (now - t1) / 86400 };
 }
 function creditBurnEl(c) {
   const C = ACTION.credit, b = creditBurnOf(c);
