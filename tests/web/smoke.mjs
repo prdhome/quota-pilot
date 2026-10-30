@@ -3,7 +3,9 @@
 // 用法：node smoke.mjs <base_url> <fixtures 目錄> <情境>...（<base_url>/<情境>/ 是 tests/lib/fixture.py site 產生的目錄）
 // 設 SHOTS=<目錄> 時另存每組情境的桌機／手機截圖。
 import { chromium } from 'playwright';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
 const [base, fixDir, ...names] = process.argv.slice(2);
 const SHOTS = process.env.SHOTS;
@@ -24,8 +26,8 @@ async function launch() {
   }
 }
 const browser = await launch();
-async function open(url, vp, setup) {
-  const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
+async function open(url, vp, setup, opts = {}) {
+  const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height }, ...opts });
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
@@ -81,6 +83,8 @@ for (const name of names) {
         work: { tiles: [...q('#work .wt')].map(e => e.innerText.replace(/\n/g, ' ')), empty: $('work').innerText },
         eff: document.querySelector('#cmds .eff')?.dataset.effort ?? null,
         lastCycles: [...q('#providers .last-cycle')].map(e => ({ tag: e.dataset.tag, text: e.textContent })),
+        stab: (b => b && { max: +b.dataset.max, flaps: +b.dataset.flaps, tiles: b.querySelectorAll('.wt').length })(document.querySelector('#stability .stab')),
+        stabLevel: document.querySelector('#stability .stab-verdict')?.dataset.level,
       };
     });
     r.snapEffort = await page.evaluate(() => fetch('data/snapshot.json').then(x => x.json()).then(j => j.effort));
@@ -169,7 +173,29 @@ for (const name of names) {
       JSON.stringify({ eff: r.eff, snapEffort: r.snapEffort, todo: r.todo }));
     const lc = ['claude', 'codex'].filter(p => sc[p]);
     check(`${t}：上週期結算 ${lc.length} 行、合成歷史的上週期剩很多 → 浪費`, r.lastCycles.length === lc.length && r.lastCycles.every(x => x.tag === 'waste' && /^上週期 \d+\/\d+ 結束時剩 \d+%：浪費/.test(x.text)), JSON.stringify(r.lastCycles));
+    check(`${t}：規則穩定度 3 格＋判讀（warn ⇔ 單日 ≥6 或來回 ≥3）`, r.stab && r.stab.tiles === 3 && r.stabLevel === (r.stab.max >= 6 || r.stab.flaps >= 3 ? 'warn' : 'ok'), JSON.stringify({ stab: r.stab, level: r.stabLevel }));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
+    await page.close();
+  }
+}
+
+// --- 規則穩定度與 bin/analyze.py 一致：tests/fixtures/history 的假歷史平移到「現在」、只留最近 6.9 天，網頁與 analyze.py --json 各算一次（都用 UTC 日界）---
+{
+  const root = new URL('../..', import.meta.url).pathname, tmp = mkdtempSync(`${tmpdir()}/qp-stab-`);
+  for (const [hn, wantLevel, pair] of [['flapping', 'warn', 'Claude 正常↔吃緊'], ['stable-rich', 'ok', null]]) {
+    const src = readFileSync(`${root}tests/fixtures/history/${hn}.jsonl`, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+    const now = Math.floor(Date.now() / 1000), shift = now - 60 - src[src.length - 1].t;
+    const rows = src.map(r => ({ ...r, t: r.t + shift })).filter(r => r.t >= now - 6.9 * 86400);
+    const body = rows.map(r => JSON.stringify(r)).join('\n') + '\n', f = `${tmp}/${hn}.jsonl`;
+    writeFileSync(f, body);
+    const a = JSON.parse(execFileSync('python3', ['-I', `${root}bin/analyze.py`, '--json', f], { env: { ...process.env, TZ: 'UTC' } }).toString()).switches;
+    const { page, errors } = await open(`${base}/${names[0]}/`, VIEWPORTS[0], page => page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body })), { timezoneId: 'UTC' });
+    const r = await page.evaluate(() => { const b = document.querySelector('#stability .stab'), v = document.querySelector('#stability .stab-verdict');
+      return { max: +b.dataset.max, flaps: +b.dataset.flaps, hub: +b.dataset.hub, level: v.dataset.level, text: v.textContent }; });
+    check(`規則穩定度/${hn}：單日最多 ${a.max_per_day}、來回 ${a.flaps}、主控單日 ${a.hub_max_per_day}（同 analyze.py）→ ${wantLevel}`,
+      errors.length === 0 && r.max === a.max_per_day && r.flaps === a.flaps && r.hub === a.hub_max_per_day && r.level === wantLevel && (!pair || r.text.includes(pair)),
+      JSON.stringify({ errors, page: r, analyze: { max: a.max_per_day, flaps: a.flaps, hub: a.hub_max_per_day } }));
+    if (SHOTS) await page.locator('#stability').screenshot({ path: `${SHOTS}/stability-${hn}.png` });
     await page.close();
   }
 }
