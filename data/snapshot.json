@@ -1,5 +1,5 @@
 {
- "generated_at": 1793573352,
+ "generated_at": 1793575160,
  "mode": {
   "mode": "6",
   "hub": "opus",
@@ -11,7 +11,7 @@
   "card": "-"
  },
  "explain": [
-  "claude: unknown — stale 30.5h → default opus",
+  "claude: unknown — stale 31.0h → default opus",
   "codex:  ok — 5h left 100% week left 56% surplus 2",
   "matrix: (unknown,ok) → mode 6; override - → route cost"
  ],
@@ -26,9 +26,9 @@
   "codex_left5": "100",
   "codex_left7": "56",
   "codex_surplus": "2",
-  "codex_reset_h": "91",
-  "codex_proj7": "96",
-  "codex_runway_h": "98",
+  "codex_reset_h": "90",
+  "codex_proj7": "95",
+  "codex_runway_h": "99",
   "codex_cards": "1"
  },
  "effort": null,
@@ -42,18 +42,18 @@
    "resets_at": 1793966400.0
   },
   "updated_at": 1793463546,
-  "surplus": 30.0
+  "surplus": 30.3
  },
  "codex": {
   "five": {
    "used": 0.0,
-   "resets_at": 1793591110.0
+   "resets_at": 1793592910.0
   },
   "week": {
    "used": 44.0,
    "resets_at": 1793900326.0
   },
-  "surplus": 1.9
+  "surplus": 2.2
  },
  "cards": [
   {
