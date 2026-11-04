@@ -1,5 +1,5 @@
 {
- "generated_at": 1793750848,
+ "generated_at": 1793752656,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -11,8 +11,8 @@
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 64% used 17% surplus 47 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 100%; 5h reset since reading",
-  "codex:  rich — 5h left 89% week left 24% surplus -1",
+  "claude: rich — week elapsed 65% used 19% surplus 46 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 89%",
+  "codex:  rich — 5h left 72% week left 21% surplus -3",
   "matrix: (rich,rich) → mode 1; override - → route delegate",
   "note:   codex lean → rich（有 3 張卷）"
  ],
@@ -20,47 +20,47 @@
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "100",
-  "claude_left7": "83",
-  "claude_surplus": "47",
-  "claude_reset_h": "60",
-  "claude_proj7": "26",
-  "claude_runway_h": "528",
+  "claude_left5": "89",
+  "claude_left7": "81",
+  "claude_surplus": "46",
+  "claude_reset_h": "59",
+  "claude_proj7": "29",
+  "claude_runway_h": "463",
   "claude_cards": "0",
   "codex_raw": "lean",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "89",
-  "codex_left7": "24",
-  "codex_surplus": "-1",
-  "codex_reset_h": "42",
-  "codex_proj7": "101",
-  "codex_runway_h": "40",
+  "codex_left5": "72",
+  "codex_left7": "21",
+  "codex_surplus": "-3",
+  "codex_reset_h": "41",
+  "codex_proj7": "105",
+  "codex_runway_h": "34",
   "codex_cards": "3"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 0.0,
-   "resets_at": 1793736000.0
+   "used": 11.0,
+   "resets_at": 1793766600.0
   },
   "week": {
-   "used": 17.0,
+   "used": 19.0,
    "resets_at": 1793966400.0
   },
-  "updated_at": 1793735967,
-  "surplus": 47.4
+  "updated_at": 1793752655,
+  "surplus": 45.7
  },
  "codex": {
   "five": {
-   "used": 11.0,
+   "used": 28.0,
    "resets_at": 1793766614.0
   },
   "week": {
-   "used": 76.0,
+   "used": 79.0,
    "resets_at": 1793900326.0
   },
-  "surplus": -0.7
+  "surplus": -3.4
  },
  "cards": [
   {
