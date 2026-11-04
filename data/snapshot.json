@@ -1,39 +1,39 @@
 {
- "generated_at": 1793765311,
+ "generated_at": 1793767119,
  "mode": {
   "mode": "2",
   "hub": "opus",
-  "route": "direct",
+  "route": "cost",
   "subagent": "sonnet",
   "claude": "rich",
   "codex": "ok",
-  "override": "codex5h-low",
+  "override": "-",
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 67% used 23% surplus 44 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 52%",
-  "codex:  ok — 5h left 12% week left 12% surplus -10",
-  "matrix: (rich,ok) → mode 2; override codex5h-low → route direct",
+  "claude: rich — week elapsed 67% used 23% surplus 44 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 100%; 5h reset since reading",
+  "codex:  ok — 5h left 100% week left 12% surplus -10",
+  "matrix: (rich,ok) → mode 2; override - → route cost",
   "note:   codex tight → ok（有 3 張卷）"
  ],
  "detail": {
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "52",
+  "claude_left5": "100",
   "claude_left7": "77",
   "claude_surplus": "44",
-  "claude_reset_h": "56",
+  "claude_reset_h": "55",
   "claude_proj7": "34",
-  "claude_runway_h": "375",
+  "claude_runway_h": "377",
   "claude_cards": "0",
   "codex_raw": "tight",
   "codex_policy": "ok",
   "codex_fresh": "fresh",
-  "codex_left5": "12",
+  "codex_left5": "100",
   "codex_left7": "12",
   "codex_surplus": "-10",
-  "codex_reset_h": "38",
+  "codex_reset_h": "37",
   "codex_proj7": "113",
   "codex_runway_h": "18",
   "codex_cards": "3"
@@ -41,26 +41,26 @@
  "effort": null,
  "claude": {
   "five": {
-   "used": 48.0,
+   "used": 0.0,
    "resets_at": 1793766600.0
   },
   "week": {
    "used": 23.0,
    "resets_at": 1793966400.0
   },
-  "updated_at": 1793765310,
-  "surplus": 43.8
+  "updated_at": 1793766570,
+  "surplus": 44.1
  },
  "codex": {
   "five": {
-   "used": 88.0,
-   "resets_at": 1793766614.0
+   "used": 0.0,
+   "resets_at": 1793785004.0
   },
   "week": {
    "used": 88.0,
    "resets_at": 1793900327.0
   },
-  "surplus": -10.3
+  "surplus": -10.0
  },
  "cards": [
   {
