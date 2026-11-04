@@ -156,6 +156,14 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .tok-chart svg { display: block; width: 100%; height: 170px; overflow: visible; }
 .tok-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 .tok-note b { color: var(--ink-2); font-weight: 600; }
+/* 額度換算：1% 週額度 ≈ 多少 API 估算金額（Token 區塊底下） */
+.qrate { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--grid); }
+.qrate h3 { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0 0 8px; }
+.work.qrate-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.qrate-cmp { font-size: 13px; margin: 8px 0 0; }
+.qrate-cmp b { font-variant-numeric: tabular-nums; }
+.qrate-chart svg { height: 150px; }
+.qrate .wt-num { white-space: nowrap; }
 /* 雲端點數消耗速度（點數那一列底下） */
 .credit-burn { font-size: 12px; color: var(--ink-2); margin: 6px 0 0; display: flex; gap: 6px; align-items: flex-start; }
 .credit-burn::before { content: "◇"; color: var(--muted); flex: none; }
@@ -323,6 +331,14 @@ footer a { color: inherit; }
       <div class="tok-chart" id="tokens-chart"><div class="tip"></div></div>
       <details><summary>各模型明細（近 14 天）</summary><div id="tokens-table" class="scroll-x"></div></details>
       <p class="tok-note" id="tokens-note"></p>
+      <div class="qrate" id="qrate" hidden>
+        <h3 id="qrate-title"></h3>
+        <div class="work qrate-tiles" id="qrate-tiles"></div>
+        <p class="qrate-cmp" id="qrate-cmp"></p>
+        <div class="legend" style="margin-top:10px"><span><i style="background:var(--claude)"></i>Claude 每日</span><span><i style="background:var(--codex)"></i>Codex 每日</span></div>
+        <div class="tok-chart qrate-chart" id="qrate-chart"><div class="tip"></div></div>
+        <p class="tok-note" id="qrate-note"></p>
+      </div>
     </section>
 
     <div class="grid lower" id="lower">
@@ -451,6 +467,18 @@ const ACTION = {
     usageNone: p => `還沒有足夠的餘額紀錄：用 quota-reserve.sh credit ${p} <餘額> 更新，記兩次（相隔 1 天以上）就看得出有沒有在扣。`,
     usageFlat: d => `近 ${d} 天沒有扣款（沒有超出方案上限）。`,
     usageSpend: (d, spent, rate, out) => ['warn', [`近 ${d} 天扣了 `, spent, `（平均每天 `, rate, `）：有超出方案上限、在花已購買的額度`, ...(out ? ['，照這速度約 ', out, ' 用完'] : []), '。']],
+  },
+  // 額度換算：tokens.json 每天 API 估算金額 ÷ history 同一天週已用 % 的上升量（只加總上升，週重置與用卷的下降不算）
+  // 近 days 天合計週用了 ≥ minPct% 才算換算值；每日折線只畫週用了 ≥ minDayPct% 而且有估算金額的日子；比較句用 cmpUsd 當工作量
+  rate: {
+    days: 7, minPct: 5, minDayPct: 2, cmpUsd: 10,
+    title: '額度換算（近 7 天）：1% 週額度 ≈ 多少 API 估算金額',
+    sub: (pct, cost) => `週用了 ${pct}%、估算 ${cost}`,
+    few: pct => `週只用了 ${pct}%（少於 ${ACTION.rate.minPct}%），算不準`,
+    none: '讀不到週額度歷史',
+    cmp: (usd, c, x) => ['同樣 ', usd, ' 的工作量，約用掉 Claude 週額度 ', el('b', {}, `${c}%`), '、Codex 週額度 ', el('b', {}, `${x}%`), '。'],
+    noCmp: '兩邊都要有足夠的週用量才能比較。',
+    note: '數字越大＝每 1% 週額度換到越多工作量。Claude 週額度也會被網頁版、App、雲端工作階段用掉，這些不在 token 統計裡，所以 Claude 的換算值偏低（Codex 雲端任務同理）。Mac 關機期間的用量會算在開機後那一天，看合計比看單日準。',
   },
   // 工作量格（data/work.json，由 bin/work-stats.sh 產生；只有次數）
   work: {
@@ -723,6 +751,7 @@ function render() {
   renderCardEffect();
   renderWork();
   renderTokens();
+  renderRate();
   drawCharts();
 }
 
@@ -904,6 +933,73 @@ function renderTokens() {
   $('tokens-note').replaceChildren('按 API 單價估算（', el('b', {}, `${PRICES_AS_OF} 官方價目`), '），不是實際帳單：訂閱方案不按 token 計費，這裡用來比較模型與每天的用量規模。',
     unknown.length ? ` 沒有單價、不計入金額：${unknown.join('、')}。` : '', tokens.skipped && Object.values(tokens.skipped).some(Boolean) ? ` 讀不懂而略過的紀錄：${Object.entries(tokens.skipped).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join('、')}。` : '');
 }
+// 額度換算：每天兩邊的估算金額（tokenDays）與週已用 % 上升量（history 相鄰兩列的差，只取正值；沒有歷史的日子＝null）
+function rateDays() {
+  const days = tokenDays(), pct = Object.fromEntries(days.map(([d]) => [d, { claude: null, codex: null }])), rows = hist.slice().sort((a, b) => a.t - b.t);
+  for (const [p, k] of [['claude', 'c'], ['codex', 'x']])
+    for (let i = 1; i < rows.length; i++) {
+      const a = rows[i - 1][k + '7'], b = rows[i][k + '7'], d = pct[dayKey(rows[i].t)];
+      if (a != null && b != null && d) d[p] = (d[p] || 0) + Math.max(0, b - a);
+    }
+  return days.map(([d, cost]) => ({ d, cost, pct: pct[d] }));
+}
+const fmtPct = v => v < 10 ? v.toFixed(1) : String(Math.round(v));
+function renderRate() {
+  const R = ACTION.rate, box = $('qrate');
+  box.hidden = !tokens || !Array.isArray(tokens.rows);
+  if (box.hidden) return;
+  const days = rateDays().slice(-R.days), out = {};
+  for (const p of ['claude', 'codex']) {
+    const has = days.filter(x => x.pct[p] != null), pct = has.reduce((a, x) => a + x.pct[p], 0), cost = has.reduce((a, x) => a + x.cost[p], 0);
+    out[p] = { has: has.length > 0, pct, cost, rate: has.length && pct >= R.minPct ? cost / pct : null };
+  }
+  $('qrate-title').textContent = R.title;
+  $('qrate-tiles').replaceChildren(...['claude', 'codex'].map(p => { const o = out[p];
+    return el('div', { class: 'wt', 'data-p': p, ...(o.rate == null ? { 'data-none': '' } : {}) }, el('p', { class: 'wt-label' }, NAME[p]),
+      el('p', { class: 'wt-num' }, o.rate == null ? '–' : usd(o.rate), o.rate == null ? null : el('small', {}, '/ 1%')),
+      el('p', { class: 'wt-sub' }, !o.has ? R.none : o.rate == null ? R.few(fmtPct(o.pct)) : R.sub(fmtPct(o.pct), usd(o.cost)))); }));
+  const c = out.claude.rate, x = out.codex.rate;
+  $('qrate-cmp').replaceChildren(...(c && x ? R.cmp(usd(R.cmpUsd), fmtPct(R.cmpUsd / c), fmtPct(R.cmpUsd / x)) : [R.noCmp]));
+  $('qrate-note').textContent = R.note;
+}
+// 每日換算值折線：x＝近 14 天、y＝US$／1%；週用量太少或沒有估算金額的日子斷開
+function drawRate() {
+  const box = $('qrate-chart'); box.querySelector('svg')?.remove();
+  if ($('qrate').hidden) return;
+  const R = ACTION.rate, days = rateDays(), tip = box.querySelector('.tip'), W = box.clientWidth || 600, H = 150, L = 44, Rt = 8, T = 8, B = 20;
+  const val = (x, p) => x.pct[p] != null && x.pct[p] >= R.minDayPct && x.cost[p] > 0 ? x.cost[p] / x.pct[p] : null;
+  const vals = days.flatMap(x => [val(x, 'claude'), val(x, 'codex')]).filter(v => v != null);
+  if (!vals.length) { box.hidden = true; return; }
+  box.hidden = false;
+  const max = Math.max(...vals), step = Math.pow(10, Math.floor(Math.log10(max))), top = Math.ceil(max / step) * step;
+  const ns = 'http://www.w3.org/2000/svg', sv = (tag, a) => { const e = document.createElementNS(ns, tag); for (const q in a) e.setAttribute(q, a[q]); return e; };
+  const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': '近 14 天每日 1% 週額度換到的 API 估算金額（Claude 與 Codex）' });
+  const bw = (W - L - Rt) / days.length, xc = i => L + i * bw + bw / 2, y = v => T + (H - T - B) * (1 - v / top);
+  for (const v of [0, top / 2, top]) {
+    svg.append(sv('line', { x1: L, x2: W - Rt, y1: y(v), y2: y(v), stroke: v ? 'var(--grid)' : 'var(--axis)', 'stroke-width': 1 }));
+    const tx = sv('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = v ? usd(v).replace('US', '') : '0'; svg.append(tx);
+  }
+  for (const [p, col] of [['claude', 'var(--claude)'], ['codex', 'var(--codex)']]) {
+    let d = '';
+    days.forEach((x, i) => { const v = val(x, p); if (v == null) return; d += `${d && val(days[i - 1] || {}, p) != null ? 'L' : 'M'}${xc(i)},${y(v)}`; });
+    if (d) svg.append(sv('path', { class: 'qr-line', 'data-p': p, d, fill: 'none', stroke: col, 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+    days.forEach((x, i) => { const v = val(x, p); if (v != null) svg.append(sv('circle', { class: 'qr-pt', 'data-p': p, cx: xc(i), cy: y(v), r: 3, fill: col })); });
+  }
+  days.forEach((x, i) => {
+    const g = sv('g', { 'data-d': x.d });
+    g.append(sv('rect', { x: L + i * bw, y: T, width: bw, height: H - T - B, fill: 'transparent' }));
+    if ((days.length - 1 - i) % (W < 420 ? 3 : 2) === 0) { const tx = sv('text', { x: xc(i), y: H - 4, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = x.d.slice(5).replace('-', '/').replace(/^0/, ''); g.append(tx); }
+    const part = p => { const v = val(x, p); return `${NAME[p]} <b>${v == null ? '–' : usd(v)}</b>${x.pct[p] != null ? `（週用 ${fmtPct(x.pct[p])}%）` : ''}`; };
+    g.addEventListener('pointerenter', () => {
+      tip.innerHTML = `${x.d.slice(5).replace('-', '/')}　${part('claude')}　${part('codex')}`;
+      tip.style.display = 'block'; const bb = svg.getBoundingClientRect();
+      tip.style.left = Math.min(bb.width - tip.offsetWidth, Math.max(0, xc(i) * bb.width / W - tip.offsetWidth / 2)) + 'px'; tip.style.top = '-24px';
+    });
+    g.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+    svg.append(g);
+  });
+  box.prepend(svg);
+}
 // 每日估算金額長條：x＝近 14 天、Claude 在下、Codex 疊在上（中間留 2px），滑過看當天兩邊金額
 function drawTokens() {
   const box = $('tokens-chart'); box.querySelector('svg')?.remove();
@@ -956,7 +1052,7 @@ function renderWork() {
       : tile('週回顧待處理', '–', '', '還沒接上', true));
   $('work-note').textContent = W.note;
 }
-const drawCharts = () => { drawTrend(); drawBurns(); drawMatrixPath(); drawTokens(); };
+const drawCharts = () => { drawTrend(); drawBurns(); drawMatrixPath(); drawTokens(); drawRate(); };
 
 const WEEK = 604800;
 // 目前週期：S＝開始、R＝結束（已過 reset 就往後推一週、用量歸零）
