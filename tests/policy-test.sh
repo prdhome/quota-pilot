@@ -123,6 +123,15 @@ eq "credit：只動最早到期、未過期的那筆（過期與較晚到期的�
 eq "credit：log 追加兩筆、加值後 usd_total 調高到 60" "[25.5, 60.0] 60.0" "$(cr "[e['usd_left'] for e in c[2]['log']], c[2]['usd_total']")"
 qr credit codex 1 >/dev/null 2>&1; eq "credit：沒有該 provider 的未過期點數 → exit 非 0" 1 $?
 qr credit claude abc >/dev/null 2>&1; eq "credit：餘額不是數字 → exit 非 0" 1 $?
+# cap：每月支出上限只給使用量額度（kind=usage）；none 拿掉；session 點數或非正數 → exit 非 0
+printf '{"cards":[],"credits":[{"provider":"claude-usage","kind":"usage","usd_left":31.66,"usd_total":50,"expires":null},{"provider":"claude-cloud","kind":"session","usd_left":40,"usd_total":44,"expires":"2099-01-01T00:00:00+00:00"}]}' > "$RESV"
+qr cap claude-usage 10 >/dev/null
+eq "cap：使用量額度記下 monthly_cap 10" "10.0" "$(cr "c[0].get('monthly_cap')")"
+eq "cap：list 顯示每月上限" 1 "$(qr list | grep -c 'claude-usage.*每月上限 US\$10')"
+qr cap claude-cloud 10 >/dev/null 2>&1; eq "cap：雲端工作階段點數不能設上限 → exit 非 0" 1 $?
+qr cap claude-usage 0 >/dev/null 2>&1; eq "cap：上限 0 → exit 非 0" 1 $?
+qr cap claude-usage none >/dev/null
+eq "cap：none 拿掉上限" "None" "$(cr "c[0].get('monthly_cap')")"
 # add-credit：session 要到期日；usage 可以沒有到期日，credit 也能更新它；同一 provider 已有未過期的不能重複加；舊資料沒寫 kind 照樣能 list
 printf '{"cards":[],"credits":[{"provider":"old","usd_left":5,"usd_total":10,"expires":"2099-01-01T00:00:00+00:00"}]}' > "$RESV"
 qr add-credit claude-cloud session 44 >/dev/null 2>&1; eq "add-credit：session 沒給到期日 → exit 非 0" 1 $?

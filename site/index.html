@@ -174,6 +174,14 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .usage-credits h3 { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0 0 2px; }
 .usage-credits .hint { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
 .usage-row { padding: 6px 0; }
+.cap { margin-top: 6px; font-size: 12px; color: var(--ink-2); }
+.cap-head { display: flex; justify-content: space-between; gap: 8px; }
+.cap-head b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.cap-bar { height: 6px; margin: 4px 0; background: var(--surface-2); border: 1px solid var(--ring); border-radius: 999px; overflow: hidden; }
+.cap-bar i { display: block; height: 100%; background: var(--good); }
+.cap[data-level="warn"] .cap-bar i { background: var(--warning); }
+.cap[data-level="crit"] .cap-bar i { background: var(--critical); }
+.cap p { margin: 0; }
 .eff { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 8px; margin-right: 6px; border-radius: 6px; border: 1px dashed var(--axis); color: var(--ink-2); }
 /* matrix */
 .lower { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
@@ -466,6 +474,13 @@ const ACTION = {
     usageHint: '超過方案上限後才扣，花的是真錢；跟上面會到期的雲端工作階段點數分開算。',
     usageNone: p => `還沒有足夠的餘額紀錄：用 quota-reserve.sh credit ${p} <餘額> 更新，記兩次（相隔 1 天以上）就看得出有沒有在扣。`,
     usageFlat: d => `近 ${d} 天沒有扣款（沒有超出方案上限）。`,
+    // 每月支出上限（quota-reserve.sh cap）：假設每月 1 日重設（瀏覽器時區）；本月已扣＝本月內餘額下降的總和（加值不算），月初前最後一筆紀錄當起點
+    capHead: (spent, cap) => [`本月已扣 `, spent, ` / 上限 `, cap],
+    capFull: reset => ['crit', `本月上限已用完：超出方案上限後要等 ${reset}（假設每月 1 日重設）才能再用使用量額度。`],
+    capHit: (date, reset) => ['warn', [`照這速度約 `, date, ` 撞到上限（${reset} 才重設），之後超出方案上限就不能繼續用。`]],
+    capOk: ['ok', '照這速度本月不會撞到上限。'],
+    capNoRate: ['ok', '本月紀錄不到 1 天，還估不出速度。'],
+    capPartial: d => `（從 ${d} 的紀錄起算，月初到那天的扣款沒算到）`,
     usageSpend: (d, spent, rate, out) => ['warn', [`近 ${d} 天扣了 `, spent, `（平均每天 `, rate, `）：有超出方案上限、在花已購買的額度`, ...(out ? ['，照這速度約 ', out, ' 用完'] : []), '。']],
   },
   // 額度換算：tokens.json 每天 API 估算金額 ÷ history 同一天週已用 % 的上升量（只加總上升，週重置與用卷的下降不算）
@@ -1289,7 +1304,26 @@ function usageCreditsEl() {
     ...list.map(c => el('div', { class: 'usage-row', 'data-p': c.provider },
       el('div', { class: 'res-head' }, el('span', { class: 'tag' }, el('span', { class: 'dot', style: 'background:var(--claude)' }), c.provider),
         el('span', {}, el('span', { class: 'when' }, c.expires ? `${md(Date.parse(c.expires) / 1000)} 到期 · ` : '沒有到期日 · '), el('span', { class: 'left' }, `剩 US$${c.usd_left}`))),
-      usageBurnEl(c))));
+      usageBurnEl(c), c.monthly_cap > 0 ? capEl(c) : null)));
+}
+// 本月已扣：月初前最後一筆當起點（沒有就從本月第一筆起算），相鄰紀錄只加總下降；速度＝已扣 ÷ 起點到最後一筆的天數
+function capOf(c) {
+  const now = nowS(), d = new Date(now * 1000), m0 = new Date(d.getFullYear(), d.getMonth(), 1) / 1000, m1 = new Date(d.getFullYear(), d.getMonth() + 1, 1) / 1000;
+  const pts = (c.log || []).filter(([t, v]) => t <= now + 600 && Number.isFinite(v)).sort((a, b) => a[0] - b[0]);
+  const base = pts.filter(([t]) => t < m0).pop(), seq = (base ? [base] : []).concat(pts.filter(([t]) => t >= m0));
+  let spent = 0;
+  for (let i = 1; i < seq.length; i++) spent += Math.max(0, seq[i - 1][1] - seq[i][1]);
+  const from = base ? m0 : seq[0]?.[0], t1 = seq[seq.length - 1]?.[0], left = c.monthly_cap - spent;
+  const rate = seq.length > 1 && t1 - from >= 86400 ? spent / ((t1 - from) / 86400) : null, hit = rate > 0 && left > 0 ? t1 + left / rate * 86400 : null;
+  return { spent, left, rate, hit: hit != null && hit < m1 ? hit : null, m1, partial: !base && seq.length ? from : null };
+}
+function capEl(c) {
+  const C = ACTION.credit, k = capOf(c), reset = md(k.m1);
+  const [level, msg] = k.left <= 0 ? C.capFull(reset) : k.hit ? C.capHit(el('b', {}, md(k.hit)), reset) : k.rate == null ? C.capNoRate : C.capOk;
+  return el('div', { class: 'cap', 'data-level': level },
+    el('div', { class: 'cap-head' }, el('span', {}, ...C.capHead(el('b', {}, usd(k.spent)), el('b', {}, usd(c.monthly_cap)))), el('span', {}, `${Math.round(100 * k.spent / c.monthly_cap)}%`)),
+    el('div', { class: 'cap-bar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': c.monthly_cap, 'aria-valuenow': k.spent.toFixed(2) }, el('i', { style: `width:${Math.min(100, 100 * k.spent / c.monthly_cap).toFixed(1)}%` })),
+    el('p', {}, ...[].concat(msg), k.partial ? C.capPartial(md(k.partial)) : ''));
 }
 function usageBurnEl(c) {
   const C = ACTION.credit, b = creditBurnOf(c);

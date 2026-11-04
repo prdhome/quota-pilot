@@ -297,6 +297,33 @@ for (const codexPerDay of [5, 1]) {
   await page.close();
 }
 
+// --- 每月支出上限：時鐘固定 2026-11-20 12:00 UTC。hit：月初前 40 → 36 → 加值 50 → 46，本月扣 US$8／上限 10（80%），17.5 天平均 → 約 11/22 撞到上限；
+//     full：本月扣 US$6／上限 5 → 用完、12/1 才重設；slow：月初前沒有紀錄 → 從 11/3 起算、本月不會撞到上限 ---
+{
+  const T = Date.UTC(2026, 10, 20, 12) / 1000, at = x => Date.parse(x) / 1000;
+  const snap = await (await fetch(`${base}/${names[0]}/data/snapshot.json`)).json();
+  const u = (p, cap, log) => ({ provider: p, kind: 'usage', usd_left: log[log.length - 1][1], usd_total: 50, expires: null, monthly_cap: cap, log: log.map(([x, v]) => [at(x), v]) });
+  snap.credits = [u('hit', 10, [['2026-10-28T00:00:00Z', 40], ['2026-11-05T00:00:00Z', 36], ['2026-11-10T00:00:00Z', 50], ['2026-11-18T12:00:00Z', 46]]),
+    u('full', 5, [['2026-10-30T00:00:00Z', 20], ['2026-11-15T00:00:00Z', 14]]), u('slow', 10, [['2026-11-03T00:00:00Z', 30], ['2026-11-19T00:00:00Z', 29]]),
+    { ...u('nocap', null, [['2026-11-03T00:00:00Z', 30]]) }];
+  for (const vp of VIEWPORTS) {
+    const { page, errors } = await open(`${base}/${names[0]}/`, vp, async page => {
+      await page.clock.install({ time: T * 1000 });
+      await page.route('**/data/snapshot.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snap) }));
+    }, { timezoneId: 'UTC' });
+    const r = await page.evaluate(() => ({ cap: Object.fromEntries([...document.querySelectorAll('#reserves .usage-row')].map(e => { const c = e.querySelector('.cap');
+      return [e.dataset.p, c && { level: c.dataset.level, text: c.innerText.replace(/\n/g, ' '), w: c.querySelector('.cap-bar i').style.width }]; })),
+      hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
+    const { hit, full, slow, nocap } = r.cap;
+    check(`每月上限/${vp.tag}：本月扣 US$8.00／上限 US$10.00（80%，加值不算）→ 約 11/22 撞到上限`, hit?.level === 'warn' && hit.text.includes('本月已扣 US$8.00 / 上限 US$10.00') && hit.text.includes('80%') && hit.w === '80%' && hit.text.includes('約 11/22 撞到上限（12/1 才重設）'), JSON.stringify(hit));
+    check(`每月上限/${vp.tag}：扣了 US$6／上限 5 → 用完、進度條封頂`, full?.level === 'crit' && full.text.includes('120%') && full.w === '100%' && full.text.includes('要等 12/1'), JSON.stringify(full));
+    check(`每月上限/${vp.tag}：月初前沒有紀錄 → 從 11/3 起算、不會撞到上限；沒設上限不顯示；無水平捲動`,
+      slow?.level === 'ok' && slow.text.includes('本月不會撞到上限') && slow.text.includes('從 11/3 的紀錄起算') && nocap === null && errors.length === 0 && !r.hscroll, JSON.stringify({ slow, nocap, errors }));
+    if (SHOTS) await page.locator('.usage-credits').screenshot({ path: `${SHOTS}/cap-${vp.tag}.png` });
+    await page.close();
+  }
+}
+
 // --- 用卷效果：換掉 snapshot 的卷並注入歷史，涵蓋 時機好（建議後 5 小時才用）／偏早（沒建議就用）／過期沒用（期間有建議）／超出歷史 ---
 {
   const now = Math.floor(Date.now() / 1000), D = 86400, H = 3600, iso = t => new Date(t * 1000).toISOString();

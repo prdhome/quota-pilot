@@ -8,7 +8,7 @@
    {"provider": "codex", "expires_in": 1209600, "used_at": "2026-10-01T00:00:00+08:00"}
   ],
   "credits": [{"provider": "claude-cloud", "kind": "session", "usd_left": 12.5, "usd_total": 50, "expires_in": 2592000, "note": "fixture", "log": [[691200, 30], [345600, 20], [86400, 12.5]]},
-              {"provider": "claude-usage", "kind": "usage", "usd_left": 31.66, "usd_total": 50, "expires_in": null, "log": [[432000, 40], [86400, 31.66]]}]
+              {"provider": "claude-usage", "kind": "usage", "usd_left": 31.66, "usd_total": 50, "expires_in": null, "monthly_cap": 10, "log": [[432000, 40], [86400, 31.66]]}]
  },
  "expect": {"effort": "low", "mode": {"mode": "6", "hub": "opus", "route": "cost", "subagent": "sonnet", "claude": "ok", "codex": "ok", "override": "-", "card": "claude:use"},
             "action": ["Claude 重置卷", "quota-reserve.sh use claude"]}

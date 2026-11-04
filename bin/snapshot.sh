@@ -49,8 +49,8 @@ def credit_log(c):  # 餘額紀錄（quota-reserve.sh credit）：只留 30 天�
             if t >= now - 30 * 86400: out.append([round(t), float(e["usd_left"])])
         except (KeyError, TypeError, ValueError): pass
     return sorted(out)
-# kind：session＝雲端工作階段點數（到期作廢）、usage＝使用量額度（已購買，可沒有到期日）；舊資料沒寫當 session
-out["credits"] = [{"provider": c.get("provider"), "kind": c.get("kind") or "session", **{k: c.get(k) for k in ("usd_left", "usd_total", "expires")}, "log": credit_log(c)}
+# kind：session＝雲端工作階段點數（到期作廢）、usage＝使用量額度（已購買，可沒有到期日）；舊資料沒寫當 session；monthly_cap＝每月支出上限（quota-reserve.sh cap，沒設＝null）
+out["credits"] = [{"provider": c.get("provider"), "kind": c.get("kind") or "session", **{k: c.get(k) for k in ("usd_left", "usd_total", "expires", "monthly_cap")}, "log": credit_log(c)}
                   for c in r.get("credits", [])]
 print(json.dumps(out, ensure_ascii=False, indent=1))
 PY
