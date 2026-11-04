@@ -87,6 +87,7 @@ for (const name of names) {
         stabLevel: document.querySelector('#stability .stab-verdict')?.dataset.level,
         tok: { tiles: q('#tokens .wt').length, text: $('tokens').innerText, days: q('#tokens-chart .tok-day').length, bars: q('#tokens-chart rect.tok-c, #tokens-chart rect.tok-x').length,
           models: [...q('#tokens-table tr[data-model]')].map(e => e.dataset.model), note: $('tokens-note').textContent },
+        follow: { rows: q('#follow .fol-row[data-d]').length, text: $('follow').innerText },
         qrate: { hidden: $('qrate').hidden, tiles: [...q('#qrate-tiles .wt')].map(e => e.innerText.replace(/\n/g, ' ')), lines: q('#qrate-chart .qr-line').length },
         credit: [...q('#reserves .res-row[data-kind="credit"] .credit-burn')].map(e => ({ level: e.dataset.level, text: e.textContent, label: e.closest('.res-row').querySelector('.tag').textContent })),
         usage: [...q('#reserves .usage-row')].map(e => ({ p: e.dataset.p, head: e.querySelector('.res-head').textContent, level: e.querySelector('.credit-burn')?.dataset.level, text: e.querySelector('.credit-burn')?.textContent || '' })),
@@ -185,8 +186,9 @@ for (const name of names) {
     check(`${t}：5h 尖峰熱圖 2 張、每列 24 格、有摘要`, r.peaks.length === 2 && r.peaks.every(x => !sc[x.p] ? true : x.rows >= 1 && x.cells === x.rows * 24 && x.sev > 0 && /5h (偏低多在 \d+–\d+ 時|沒有偏低)/.test(x.note)), JSON.stringify(r.peaks.map(({ sev, ...x }) => x)));
     if (sc.tokens === null) {
       errors.splice(0, errors.length, ...errors.filter(e => !/tokens\.json|404 \(File not found\)|status of 404/.test(e)));
-      check(`${t}：沒有 tokens.json → Token 區塊顯示「還沒接上」、額度換算不顯示`, r.tok.tiles === 0 && r.tok.text.includes('還沒接上') && r.qrate.hidden, JSON.stringify({ tok: r.tok, qrate: r.qrate }));
+      check(`${t}：沒有 tokens.json → Token 區塊顯示「還沒接上」、額度換算不顯示`, r.tok.tiles === 0 && r.tok.text.includes('還沒接上') && r.qrate.hidden && r.follow.rows === 0 && r.follow.text.includes('還沒接上'), JSON.stringify({ tok: r.tok, qrate: r.qrate, follow: r.follow }));
     } else {
+      check(`${t}：建議與實際 7 列`, r.follow.rows === 7, JSON.stringify(r.follow));
       check(`${t}：額度換算 2 格（有週用量的一邊寫出 US$／1%）`, !r.qrate.hidden && r.qrate.tiles.length === 2
         && ['claude', 'codex'].every((p, i) => !sc[p] || sc[p].week_used == null || /US\$[\d.,]+ ?\/ 1%|算不準/.test(r.qrate.tiles[i])), JSON.stringify(r.qrate));
     }
@@ -295,6 +297,38 @@ for (const codexPerDay of [5, 1]) {
   check('使用量額度：沒有紀錄 → 教怎麼記；沒有扣款 → 沒有超出方案上限', u['claude-usage']?.includes('quota-reserve.sh credit claude-usage') && u['extra-usage']?.includes('近 4 天沒有扣款（沒有超出方案上限）'), JSON.stringify(u));
   check('點數速度：沒寫 kind 的舊資料都當雲端工作階段點數', r.length === 4 && r.every(x => x.label.startsWith('雲端工作階段點數')), JSON.stringify(r.map(x => x.label)));
   await page.close();
+}
+
+// --- 建議與實際：UTC 時區，前 4 天各一種情況（每天 48 列歷史＋當天 token）：
+//     d-4 可派＋Opus → 照建議；d-3 全天不派 Codex、Codex 輸出 50% → 標黃；d-2 全天建議 Sonnet、Opus 輸出 75% → 標黃；d-1 不派 Codex 但只用 1 萬 token → 用量少；今天沒有歷史 ---
+{
+  const D = 86400, today = Math.floor(Date.now() / 1000 / D) * D, rows = [], tok = [], K = 1e3;
+  const day = i => new Date((today - i * D) * 1000).toISOString().slice(0, 10);
+  const plan = { 4: ['rich', 'opus'], 3: ['tight', 'opus'], 2: ['rich', 'sonnet'], 1: ['tight', 'opus'] };
+  for (const [i, [xt, hub]] of Object.entries(plan)) for (let k = 0; k < 48; k++)
+    rows.push({ t: today - i * D + k * 1800, mode: 1, ct: 'ok', xt, hub, override: '-', card: '-', c5: 10, x5: 10, c7: 30, cs: 0, x7: 30, xs: 0 });
+  const tr = (i, p, m, out) => tok.push({ d: day(i), p, m, n: 1, s: 1, in: 0, out, cr: 0, cw5: 0, cw1h: 0 });
+  tr(4, 'claude', 'claude-opus-5-5', 100 * K); tr(4, 'codex', 'gpt-6.1-sol', 300 * K);
+  tr(3, 'claude', 'claude-opus-5-5', 100 * K); tr(3, 'codex', 'gpt-6.1-sol', 100 * K);
+  tr(2, 'claude', 'claude-opus-5-5', 300 * K); tr(2, 'claude', 'claude-sonnet-5-5', 100 * K);
+  tr(1, 'claude', 'claude-opus-5-5', 5 * K); tr(1, 'codex', 'gpt-6.1-sol', 5 * K);
+  const hb = rows.map(r => JSON.stringify(r)).join('\n') + '\n', tb = JSON.stringify({ generated_at: Math.floor(Date.now() / 1000), days: 14, skipped: {}, rows: tok });
+  for (const vp of VIEWPORTS) {
+    const { page, errors } = await open(`${base}/${names[0]}/`, vp, async page => {
+      await page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body: hb }));
+      await page.route('**/data/tokens.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body: tb }));
+    }, { timezoneId: 'UTC' });
+    const r = await page.evaluate(() => ({ rows: Object.fromEntries([...document.querySelectorAll('#follow .fol-row')].map(e => [e.dataset.d, { tag: e.dataset.tag, text: e.innerText.replace(/\n/g, ' ') }])),
+      sum: document.getElementById('follow-sum').textContent, hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
+    const g = i => r.rows[day(i)] || {};
+    check(`建議與實際/${vp.tag}：照建議／不派 Codex 仍用 Codex 50%／建議 Sonnet 仍用 Opus 75%／用量少／今天沒有建議紀錄`,
+      g(4).tag === 'ok' && g(4).text.includes('Codex 實際 75%') && g(3).tag === 'codex' && g(3).text.includes('Codex 實際 50%') && g(2).tag === 'opus' && g(2).text.includes('Opus 實際 75%')
+        && g(1).tag === 'few' && g(0).tag === 'nohist', JSON.stringify(r.rows));
+    check(`建議與實際/${vp.tag}：摘要寫出 2 天沒照建議與原因、無 JS error、無水平捲動`,
+      r.sum.includes('近 7 天有 2 天沒照建議') && r.sum.includes('不派 Codex 的時段仍在用 Codex') && r.sum.includes('建議 Sonnet 時仍多用 Opus') && errors.length === 0 && !r.hscroll, JSON.stringify({ sum: r.sum, errors }));
+    if (SHOTS) await page.locator('#follow-card').screenshot({ path: `${SHOTS}/follow-${vp.tag}.png` });
+    await page.close();
+  }
 }
 
 // --- 每月支出上限：時鐘固定 2026-11-20 12:00 UTC。hit：月初前 40 → 36 → 加值 50 → 46，本月扣 US$8／上限 10（80%），17.5 天平均 → 約 11/22 撞到上限；

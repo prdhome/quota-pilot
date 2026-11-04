@@ -164,6 +164,19 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .qrate-cmp b { font-variant-numeric: tabular-nums; }
 .qrate-chart svg { height: 150px; }
 .qrate .wt-num { white-space: nowrap; }
+/* 建議與實際：每天閘門／主控建議的時間占比 vs 實際輸出 token 占比 */
+.fol { display: grid; gap: 8px; margin-top: 4px; }
+.fol-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 190px; gap: 4px 14px; align-items: start; font-size: 12px; }
+.fol-row.fol-h { color: var(--muted); font-size: 11px; }
+.fol-row .fd { font-variant-numeric: tabular-nums; color: var(--ink-2); padding-top: 1px; }
+.fol-bar { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--ring); }
+.fol-bar i { display: block; height: 100%; }
+.fol-row p { margin: 3px 0 0; color: var(--ink-2); }
+.fol-row p b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.fol-row .ft { font-size: 11px; font-weight: 600; justify-self: start; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--ring); background: var(--surface-2); color: var(--muted); }
+.fol-row .ft[data-tag="ok"] { color: var(--good-text); border-color: var(--good); }
+.fol-row .ft[data-tag="codex"], .fol-row .ft[data-tag="opus"] { color: var(--ink); border-color: var(--warning); }
+.fol-sum { font-size: 13px; margin: 0 0 8px; }
 /* 雲端點數消耗速度（點數那一列底下） */
 .credit-burn { font-size: 12px; color: var(--ink-2); margin: 6px 0 0; display: flex; gap: 6px; align-items: flex-start; }
 .credit-burn::before { content: "◇"; color: var(--muted); flex: none; }
@@ -281,6 +294,9 @@ footer a { color: inherit; }
   .work { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .peaks { grid-template-columns: minmax(0, 1fr); }
   .work.tok-tiles { grid-template-columns: minmax(0, 1fr); }
+  .fol-row { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr); gap: 4px 10px; }
+  .fol-row .ft { grid-column: 2 / -1; }
+  .fol-row.fol-h span:last-child { display: none; }
   .heat { grid-template-columns: 44px repeat(24, minmax(0, 1fr)); gap: 1px; }
   .headline { font-size: 20px; }
   .todo li { font-size: 14px; }
@@ -347,6 +363,14 @@ footer a { color: inherit; }
         <div class="tok-chart qrate-chart" id="qrate-chart"><div class="tip"></div></div>
         <p class="tok-note" id="qrate-note"></p>
       </div>
+    </section>
+
+    <section class="card" id="follow-card" aria-labelledby="h-follow">
+      <h2 id="h-follow">建議與實際（近 7 天）</h2>
+      <p class="fol-sum" id="follow-sum"></p>
+      <div class="legend routes" id="follow-legend" style="margin:0 0 8px"></div>
+      <div class="fol" id="follow"></div>
+      <p class="tok-note" id="follow-note"></p>
     </section>
 
     <div class="grid lower" id="lower">
@@ -494,6 +518,21 @@ const ACTION = {
     cmp: (usd, c, x) => ['同樣 ', usd, ' 的工作量，約用掉 Claude 週額度 ', el('b', {}, `${c}%`), '、Codex 週額度 ', el('b', {}, `${x}%`), '。'],
     noCmp: '兩邊都要有足夠的週用量才能比較。',
     note: '數字越大＝每 1% 週額度換到越多工作量。Claude 週額度也會被網頁版、App、雲端工作階段用掉，這些不在 token 統計裡，所以 Claude 的換算值偏低（Codex 雲端任務同理）。Mac 關機期間的用量會算在開機後那一天，看合計比看單日準。',
+  },
+  // 建議與實際：每天閘門／主控建議的時間占比（history 每列＝30 分鐘）對照 tokens.json 的實際輸出 token 占比
+  // 「不派 Codex」占當天 ≥ gateMin 而 Codex 輸出占比 ≥ codexMax → 標黃；建議 Sonnet 占 ≥ gateMin 而 Opus 占 Claude（Opus＋Sonnet）輸出 ≥ opusMax → 標黃；兩邊輸出合計 < minOut 不判讀
+  follow: {
+    days: 7, gateMin: 0.5, codexMax: 0.2, opusMax: 0.5, minOut: 20000,
+    head: ['日期', '閘門建議 → Codex 實際占比', '主控建議 → Opus 實際占比', '判讀'],
+    tag: { ok: '照建議', codex: '不派 Codex 的時段仍在用 Codex', opus: '建議 Sonnet 時仍多用 Opus', few: '用量少，不判讀', nohist: '沒有建議紀錄', none: '沒有用量' },
+    gate: (open, no, hold) => `閘門：可派 ${open}%${no ? ` · 不派 ${no}%` : ''}${hold ? ` · 延後 ${hold}%` : ''}`,
+    codex: v => ['Codex 實際 ', el('b', {}, v == null ? '–' : `${v}%`)],
+    hub: (opus, sonnet) => `主控建議：Opus ${opus}%${sonnet ? ` · Sonnet ${sonnet}%` : ''}`,
+    opus: v => ['Opus 實際 ', el('b', {}, v == null ? '–' : `${v}%`)],
+    sumOk: n => `近 ${n} 天都照建議（或用量少不判讀）。`,
+    sumBad: (k, n, what) => `近 ${n} 天有 ${k} 天沒照建議：${what}。`,
+    none: '還沒接上（沒有 data/tokens.json）。',
+    note: '實際占比用輸出 token 算（不是金額，避免單價高低扭曲）。Opus 占比只比 Opus 與 Sonnet；subagent 也用 Sonnet，所以建議 Opus 的日子 Opus 占比本來就不會是 100%，只檢查建議 Sonnet 的日子。日界照瀏覽器時區，token 照 Mac 本機時區。',
   },
   // 工作量格（data/work.json，由 bin/work-stats.sh 產生；只有次數）
   work: {
@@ -767,6 +806,7 @@ function render() {
   renderWork();
   renderTokens();
   renderRate();
+  renderFollow();
   drawCharts();
 }
 
@@ -1045,6 +1085,41 @@ function drawTokens() {
     svg.append(g);
   });
   box.prepend(svg);
+}
+
+// 建議與實際：每天閘門與主控建議的時間占比 vs 實際輸出 token 占比
+function followDays() {
+  const F = ACTION.follow, out = [];
+  for (let i = F.days - 1; i >= 0; i--) {
+    const d = dayKey(nowS() - i * 86400), rows = hist.filter(r => dayKey(r.t) === d && r.ct != null), n = rows.length;
+    const share = f => n ? rows.filter(f).length / n : 0;
+    const tok = (tokens?.rows || []).filter(r => r.d === d), sum = f => tok.filter(f).reduce((a, r) => a + (r.out || 0), 0);
+    const cl = sum(r => r.p === 'claude'), cx = sum(r => r.p === 'codex'), op = sum(r => /opus/i.test(r.m)), so = sum(r => /sonnet/i.test(r.m));
+    out.push({ d, n, open: share(r => gateOf(r) === 'open'), no: share(r => gateOf(r) === 'no-codex'), hold: share(r => gateOf(r) === 'hold'), sonnet: share(r => r.hub === 'sonnet'),
+      tot: cl + cx, codex: cl + cx ? cx / (cl + cx) : null, opus: op + so ? op / (op + so) : null });
+  }
+  for (const x of out)
+    x.tag = !x.n ? 'nohist' : !x.tot ? 'none' : x.tot < F.minOut ? 'few' : x.no >= F.gateMin && x.codex >= F.codexMax ? 'codex' : x.sonnet >= F.gateMin && x.opus != null && x.opus >= F.opusMax ? 'opus' : 'ok';
+  return out;
+}
+function renderFollow() {
+  const F = ACTION.follow, none = !tokens || !Array.isArray(tokens.rows);
+  $('follow-legend').hidden = none;
+  if (none) { $('follow').replaceChildren(el('p', { class: 'empty', style: 'padding:4px 0;text-align:left' }, F.none)); $('follow-sum').textContent = ''; $('follow-note').textContent = ''; return; }
+  const days = followDays(), pc = v => Math.round(100 * v), seg = (v, bg) => v > 0 ? el('i', { style: `width:${(100 * v).toFixed(1)}%;background:${bg}` }) : null;
+  const HATCH = 'repeating-linear-gradient(45deg,var(--r-hold) 0 2px,var(--surface-2) 2px 5px)', SONNET = 'color-mix(in oklab, var(--claude) 35%, var(--surface-2))';
+  $('follow-legend').replaceChildren(...[['var(--codex)', 'Codex 可派'], ['var(--claude)', '不派 Codex'], [HATCH, '延後'], ['var(--claude)', '主控 Opus'], [SONNET, '主控 Sonnet']].map(([bg, t]) =>
+    el('span', {}, el('i', { class: 'sw', style: `background:${bg}` }), t)));
+  $('follow').replaceChildren(el('div', { class: 'fol-row fol-h' }, ...F.head.map(h => el('span', {}, h))), ...days.map(x => el('div', { class: 'fol-row', 'data-d': x.d, 'data-tag': x.tag },
+    el('span', { class: 'fd' }, x.d.slice(5).replace('-', '/').replace(/^0/, '')),
+    el('div', {}, el('div', { class: 'fol-bar', title: F.gate(pc(x.open), pc(x.no), pc(x.hold)) }, seg(x.open, 'var(--codex)'), seg(x.no, 'var(--claude)'), seg(x.hold, HATCH)),
+      el('p', {}, ...F.codex(x.codex == null ? null : pc(x.codex)))),
+    el('div', {}, el('div', { class: 'fol-bar', title: F.hub(pc(1 - x.sonnet), pc(x.sonnet)) }, seg(x.n ? 1 - x.sonnet : 0, 'var(--claude)'), seg(x.sonnet, SONNET)),
+      el('p', {}, ...F.opus(x.opus == null ? null : pc(x.opus)))),
+    el('span', { class: 'ft', 'data-tag': x.tag }, F.tag[x.tag]))));
+  const bad = days.filter(x => x.tag === 'codex' || x.tag === 'opus');
+  $('follow-sum').textContent = bad.length ? F.sumBad(bad.length, days.length, [...new Set(bad.map(x => F.tag[x.tag]))].join('、')) : F.sumOk(days.length);
+  $('follow-note').textContent = F.note;
 }
 
 // 工作量（data/work.json）：直做通過、派工首次成功、進行中、週回顧待處理；讀不到就整塊顯示「還沒接上」
