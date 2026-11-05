@@ -1,5 +1,5 @@
 {
- "generated_at": 1793855747,
+ "generated_at": 1793857555,
  "mode": {
   "mode": "5",
   "hub": "opus",
@@ -11,7 +11,7 @@
   "card": "-"
  },
  "explain": [
-  "claude: unknown — stale 7.9h → default opus",
+  "claude: unknown — stale 8.4h → default opus",
   "codex:  rich — 5h left 100% week left 94% surplus 2",
   "matrix: (unknown,rich) → mode 5; override - → route delegate",
   "note:   codex ok → rich（有 2 張卷）"
@@ -28,8 +28,8 @@
   "codex_left7": "94",
   "codex_surplus": "2",
   "codex_reset_h": "155",
-  "codex_proj7": "79",
-  "codex_runway_h": "200",
+  "codex_proj7": "76",
+  "codex_runway_h": "208",
   "codex_cards": "2"
  },
  "effort": null,
@@ -43,18 +43,18 @@
    "resets_at": 1793966400.0
   },
   "updated_at": 1793827171,
-  "surplus": 54.7
+  "surplus": 55.0
  },
  "codex": {
   "five": {
    "used": 0.0,
-   "resets_at": 1793873732.0
+   "resets_at": 1793875531.0
   },
   "week": {
    "used": 6.0,
    "resets_at": 1794414637.0
   },
-  "surplus": 1.6
+  "surplus": 1.9
  },
  "cards": [
   {
