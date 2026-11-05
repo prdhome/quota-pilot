@@ -157,8 +157,7 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .tok-note { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
 .tok-note b { color: var(--ink-2); font-weight: 600; }
 /* 額度換算：1% 週額度 ≈ 多少 API 估算金額（Token 區塊底下） */
-.qrate { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--grid); }
-.qrate h3 { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0 0 8px; }
+.qrate h2 { margin-bottom: 8px; }
 .work.qrate-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .qrate-cmp { font-size: 13px; margin: 8px 0 0; }
 .qrate-cmp b { font-variant-numeric: tabular-nums; }
@@ -202,7 +201,6 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .cap p { margin: 0; }
 .eff { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 2px 8px; margin-right: 6px; border-radius: 6px; border: 1px dashed var(--axis); color: var(--ink-2); }
 /* matrix */
-.lower { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
 .matrix { display: grid; grid-template-columns: 56px repeat(4, minmax(0, 1fr)); gap: 4px; font-size: 12px; }
 .matrix .h { color: var(--muted); display: grid; place-items: center; padding: 4px 0; text-align: center; }
 .matrix .rh { justify-items: start; padding-left: 2px; }
@@ -284,18 +282,25 @@ details th, details td { text-align: right; padding: 4px 6px; border-bottom: 1px
 details th:first-child, details td:first-child { text-align: left; }
 .why { font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink-2); white-space: pre-wrap; margin: 8px 0 0; }
 .empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
-/* 沒有卷／點數時：重置卷區塊收成一行，矩陣獨占一列 */
-.lower.solo { grid-template-columns: minmax(0, 1fr); }
-.lower.solo .matrix { max-width: 680px; }
-.lower.solo #res-card { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 12px 18px; }
-.lower.solo #res-card h2 { margin: 0; }
-.lower.solo #res-card .empty { padding: 0; text-align: left; }
+/* 沒有卷／點數時：重置卷區塊收成一行 */
+.matrix { max-width: 680px; }
+#res-card.solo { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 12px 18px; }
+#res-card.solo h2 { margin: 0; }
+#res-card.solo .empty { padding: 0; text-align: left; }
+/* 分頁：今日／分析；另一頁的卡片整個不顯示（圖表切頁時重畫） */
+.tabs { display: flex; gap: 4px; margin: 0 0 14px; padding: 3px; background: var(--surface-2); border: 1px solid var(--ring); border-radius: 10px; width: fit-content; }
+.tabs button { font: inherit; font-size: 14px; color: var(--ink-2); background: none; border: 0; border-radius: 7px; padding: 6px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.tabs button:focus-visible { outline: 2px solid var(--codex); outline-offset: 1px; }
+.tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warning); display: inline-block; }
+.tab-dot[hidden] { display: none; }
+body[data-view="today"] [data-tab="analysis"], body[data-view="analysis"] [data-tab="today"] { display: none !important; }
 footer { margin-top: 20px; font-size: 12px; color: var(--muted); text-align: center; }
 footer a { color: inherit; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .last-cycle[data-tag="waste"] b, :root:not([data-theme="light"]) .last-cycle[data-tag="waste"] .tag-w { color: var(--warning); } }
 :root[data-theme="dark"] .last-cycle[data-tag="waste"] b, :root[data-theme="dark"] .last-cycle[data-tag="waste"] .tag-w { color: var(--warning); }
 @media (max-width: 760px) {
-  .providers, .lower { grid-template-columns: minmax(0, 1fr); }
+  .providers { grid-template-columns: minmax(0, 1fr); }
   .work { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .peaks { grid-template-columns: minmax(0, 1fr); }
   .work.tok-tiles { grid-template-columns: minmax(0, 1fr); }
@@ -322,8 +327,13 @@ footer a { color: inherit; }
 
   <div class="status" id="status" role="alert" hidden><b id="status-title"></b><p id="status-desc"></p></div>
 
+  <nav class="tabs" role="tablist" aria-label="檢視">
+    <button type="button" role="tab" id="tab-today" data-view="today" aria-selected="true">今日</button>
+    <button type="button" role="tab" id="tab-analysis" data-view="analysis" aria-selected="false">分析<span class="tab-dot" id="tab-dot" title="分析頁有需要注意的項目" hidden></span></button>
+  </nav>
+
   <div class="grid">
-    <section class="card action" id="action" aria-labelledby="h-now" aria-live="polite">
+    <section class="card action" id="action" data-tab="today" aria-labelledby="h-now" aria-live="polite">
       <div class="action-top"><h2 id="h-now">今日行動</h2><span class="fresh" id="fresh">載入中…</span></div>
       <p class="why-fresh" id="why-fresh" hidden></p>
       <p class="degrade" id="degrade" hidden></p>
@@ -345,64 +355,24 @@ footer a { color: inherit; }
       </div>
     </section>
 
-    <div class="grid providers" id="providers"></div>
+    <div class="grid providers" id="providers" data-tab="today"></div>
 
-    <section class="card" id="work-card" aria-labelledby="h-work">
-      <div class="work-head"><h2 id="h-work">工作量（近 7 天）</h2><span class="fresh" id="work-fresh" hidden></span></div>
-      <div class="work" id="work"></div>
-      <p class="work-note" id="work-note"></p>
+    <section class="card" id="res-card" data-tab="today" aria-labelledby="h-res">
+      <h2 id="h-res">重置卷與點數到期</h2>
+      <div id="reserves"></div>
+      <div class="ce" id="card-effect" hidden></div>
     </section>
 
-    <section class="card" id="tokens-card" aria-labelledby="h-tokens">
+    <section class="card" id="tokens-card" data-tab="today" aria-labelledby="h-tokens">
       <div class="work-head"><h2 id="h-tokens">Token 用量（近 14 天，API 價格估算）</h2><span class="fresh" id="tokens-fresh" hidden></span></div>
       <div class="work tok-tiles" id="tokens"></div>
       <div class="legend" id="tokens-legend" style="margin-top:12px"><span><i style="background:var(--claude);height:10px;width:12px;border-radius:2px"></i>Claude</span><span><i style="background:var(--codex);height:10px;width:12px;border-radius:2px"></i>Codex</span></div>
       <div class="tok-chart" id="tokens-chart"><div class="tip"></div></div>
       <details><summary>各模型明細（近 14 天）</summary><div id="tokens-table" class="scroll-x"></div></details>
       <p class="tok-note" id="tokens-note"></p>
-      <div class="qrate" id="qrate" hidden>
-        <h3 id="qrate-title"></h3>
-        <div class="work qrate-tiles" id="qrate-tiles"></div>
-        <p class="qrate-cmp" id="qrate-cmp"></p>
-        <div class="legend" style="margin-top:10px"><span><i style="background:var(--claude)"></i>Claude 每日</span><span><i style="background:var(--codex)"></i>Codex 每日</span></div>
-        <div class="tok-chart qrate-chart" id="qrate-chart"><div class="tip"></div></div>
-        <p class="tok-note" id="qrate-note"></p>
-      </div>
     </section>
 
-    <section class="card" id="cycles-card" aria-labelledby="h-cycles">
-      <h2 id="h-cycles">週期趨勢（全部紀錄）</h2>
-      <div class="legend routes" id="cycles-legend" style="margin:0 0 8px"></div>
-      <div class="peaks" id="cycles"></div>
-    </section>
-
-    <section class="card" id="follow-card" aria-labelledby="h-follow">
-      <h2 id="h-follow">建議與實際（近 7 天）</h2>
-      <p class="fol-sum" id="follow-sum"></p>
-      <div class="legend routes" id="follow-legend" style="margin:0 0 8px"></div>
-      <div class="fol" id="follow"></div>
-      <p class="tok-note" id="follow-note"></p>
-    </section>
-
-    <div class="grid lower" id="lower">
-      <section class="card" aria-labelledby="h-matrix">
-        <h2 id="h-matrix">7d 模式矩陣</h2>
-        <div class="matrix" id="matrix"></div>
-        <p class="axis-note" id="matrix-note">列：Claude 7d 等級；欄：Codex 7d 等級（已含重置卷）。5h 只做暫時覆寫。</p>
-        <h2 style="margin:16px 0 0">規則穩定度（近 7 天）</h2>
-        <div id="stability"></div>
-        <h2 style="margin:16px 0 0">為什麼是這個模式</h2>
-        <ol class="reasons" id="reasons"></ol>
-        <details><summary>原始判斷紀錄</summary><pre class="why" id="why"></pre></details>
-      </section>
-      <section class="card" id="res-card" aria-labelledby="h-res">
-        <h2 id="h-res">重置卷與點數到期</h2>
-        <div id="reserves"></div>
-        <div class="ce" id="card-effect" hidden></div>
-      </section>
-    </div>
-
-    <section class="card" aria-labelledby="h-trend">
+    <section class="card" id="trend-card" data-tab="today" aria-labelledby="h-trend">
       <h2 id="h-trend">7 天趨勢：週盈餘與派工閘門</h2>
       <div class="legend"><span><i style="background:var(--claude)"></i>Claude 週盈餘</span><span><i style="background:var(--codex)"></i>Codex 週盈餘</span></div>
       <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
@@ -410,7 +380,47 @@ footer a { color: inherit; }
       <details><summary>表格檢視</summary><div id="table" class="scroll-x"></div></details>
     </section>
 
-    <section class="card" aria-labelledby="h-peaks">
+    <section class="card qrate" id="qrate" data-tab="analysis" aria-labelledby="qrate-title" hidden>
+      <h2 id="qrate-title"></h2>
+      <div class="work qrate-tiles" id="qrate-tiles"></div>
+      <p class="qrate-cmp" id="qrate-cmp"></p>
+      <div class="legend" style="margin-top:10px"><span><i style="background:var(--claude)"></i>Claude 每日</span><span><i style="background:var(--codex)"></i>Codex 每日</span></div>
+      <div class="tok-chart qrate-chart" id="qrate-chart"><div class="tip"></div></div>
+      <p class="tok-note" id="qrate-note"></p>
+    </section>
+
+    <section class="card" id="follow-card" data-tab="analysis" aria-labelledby="h-follow">
+      <h2 id="h-follow">建議與實際（近 7 天）</h2>
+      <p class="fol-sum" id="follow-sum"></p>
+      <div class="legend routes" id="follow-legend" style="margin:0 0 8px"></div>
+      <div class="fol" id="follow"></div>
+      <p class="tok-note" id="follow-note"></p>
+    </section>
+
+    <section class="card" id="cycles-card" data-tab="analysis" aria-labelledby="h-cycles">
+      <h2 id="h-cycles">週期趨勢（全部紀錄）</h2>
+      <div class="legend routes" id="cycles-legend" style="margin:0 0 8px"></div>
+      <div class="peaks" id="cycles"></div>
+    </section>
+
+    <section class="card" id="work-card" data-tab="analysis" aria-labelledby="h-work">
+      <div class="work-head"><h2 id="h-work">工作量（近 7 天）</h2><span class="fresh" id="work-fresh" hidden></span></div>
+      <div class="work" id="work"></div>
+      <p class="work-note" id="work-note"></p>
+    </section>
+
+    <section class="card" id="matrix-card" data-tab="analysis" aria-labelledby="h-matrix">
+      <h2 id="h-matrix">7d 模式矩陣</h2>
+      <div class="matrix" id="matrix"></div>
+      <p class="axis-note" id="matrix-note">列：Claude 7d 等級；欄：Codex 7d 等級（已含重置卷）。5h 只做暫時覆寫。</p>
+      <h2 style="margin:16px 0 0">規則穩定度（近 7 天）</h2>
+      <div id="stability"></div>
+      <h2 style="margin:16px 0 0">為什麼是這個模式</h2>
+      <ol class="reasons" id="reasons"></ol>
+      <details><summary>原始判斷紀錄</summary><pre class="why" id="why"></pre></details>
+    </section>
+
+    <section class="card" id="peaks-card" data-tab="analysis" aria-labelledby="h-peaks">
       <h2 id="h-peaks">5h 尖峰時段（近 14 天）</h2>
       <div class="legend heat-legend" id="peak-legend"></div>
       <div class="peaks" id="peaks"></div>
@@ -830,6 +840,8 @@ function render() {
   renderRate();
   renderFollow();
   renderCycles();
+  // 分析頁有黃標（規則常卡在門檻邊緣、沒照建議）時，在「分析」分頁旁亮一個點
+  $('tab-dot').hidden = !document.querySelector('#stability .stab-verdict[data-level="warn"], #follow .fol-row[data-tag="codex"], #follow .fol-row[data-tag="opus"]');
   drawCharts();
 }
 
@@ -1428,7 +1440,7 @@ function renderReserves() {
     ...(snap.credits || []).filter(c => c.kind !== 'usage').map(c => ({ kind: 'credit', p: c.provider, t: Date.parse(c.expires) / 1000, used: false, label: `雲端工作階段點數 US$${c.usd_left} / ${c.usd_total}`, c })),
   ].filter(i => Number.isFinite(i.t)).sort((a, b) => a.t - b.t);
   const usage = usageCreditsEl();
-  $('lower').classList.toggle('solo', !items.length && !usage);
+  $('res-card').classList.toggle('solo', !items.length && !usage);
   if (!items.length) return $('reserves').replaceChildren(...(usage ? [usage] : [el('p', { class: 'empty' }, '沒有登錄的重置卷或點數')]));
   const t0 = Math.min(now - 86400, ...items.map(i => i.t)), t1 = Math.max(now + 7 * 86400, ...items.map(i => i.t)) + 86400;
   const pct = t => (100 * (t - t0) / (t1 - t0)).toFixed(2) + '%';
@@ -1677,6 +1689,24 @@ load();
 setInterval(() => safeRender(), 30000);
 setInterval(load, 5 * 60000);
 addEventListener('resize', () => safeRender(drawCharts));
+// 分頁：今日（行動、現況、卷與點數、Token、7 天趨勢）／分析（校準用的其他區塊）。網址 #analysis 優先，其次上次選的分頁（localStorage，讀不到就今日）。
+// 被藏起來的那頁圖表寬度是 0，切頁後重畫
+function setView(v, save) {
+  if (!['today', 'analysis'].includes(v)) v = 'today';
+  document.body.dataset.view = v;
+  for (const b of document.querySelectorAll('.tabs [role="tab"]')) { const on = b.dataset.view === v; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; }
+  if (save) {
+    try { localStorage.setItem('qp-view', v); } catch {}
+    history.replaceState(null, '', v === 'analysis' ? '#analysis' : location.pathname + location.search);
+  }
+  if (document.body.dataset.state === 'ok') safeRender(drawCharts);
+}
+for (const b of document.querySelectorAll('.tabs [role="tab"]')) {
+  b.addEventListener('click', () => setView(b.dataset.view, true));
+  b.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const o = b.dataset.view === 'today' ? 'analysis' : 'today'; setView(o, true); $(`tab-${o}`).focus(); } });
+}
+addEventListener('hashchange', () => setView(location.hash === '#analysis' ? 'analysis' : 'today', false));
+setView(location.hash === '#analysis' ? 'analysis' : (() => { try { return localStorage.getItem('qp-view'); } catch { return null; } })(), false);
 </script>
 </body>
 </html>
