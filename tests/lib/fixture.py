@@ -46,7 +46,7 @@ def write_state(sc, out, now):
     res = {"cards": [{"provider": k["provider"], "expires": iso(now + k["expires_in"]), "used_at": k.get("used_at")} for k in r.get("cards", [])],
            "credits": [{"provider": k["provider"], **({"kind": k["kind"]} if "kind" in k else {}), "usd_left": k["usd_left"], "usd_total": k["usd_total"],
                         "expires": None if k["expires_in"] is None else iso(now + k["expires_in"]),
-                        "note": k.get("note", ""), **({"log": [{"t": iso(now - ago), "usd_left": v} for ago, v in k["log"]]} if "log" in k else {})}
+                        "note": k.get("note", ""), **({"monthly_cap": k["monthly_cap"]} if "monthly_cap" in k else {}), **({"log": [{"t": iso(now - ago), "usd_left": v} for ago, v in k["log"]]} if "log" in k else {})}
                        for k in r.get("credits", [])]}
     with open(os.path.join(st, "quota-reserves.json"), "w") as fh:
         json.dump(res, fh, ensure_ascii=False, indent=2)

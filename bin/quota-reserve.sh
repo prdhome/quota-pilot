@@ -12,6 +12,8 @@
 #                                  usage  ＝使用量額度（已購買）：超過方案上限後才扣、可以沒有到期日 → 儀表板看「近幾天花了多少真錢」。
 #                                例：add-credit claude-cloud session 44 2026-11-05T15:59:00+08:00；add-credit claude-usage usage 31.66
 #                                沒寫 kind 的舊資料當 session。
+#   cap <provider> <USD|none>    設定使用量額度（kind=usage）的每月支出上限（App「每月支出上限」）；none＝拿掉。
+#                                儀表板顯示本月已扣／上限與照速度何時撞到上限；假設每月 1 日重設。
 # 重置卷沒有 API，用卷後要手動 `use`；`QUOTA_RESERVES` 可改檔案路徑（測試用）。
 # 測試用：`QP_STATE` 改讀 Claude rate_limits.json 路徑；`QP_CODEX_TSV="<5h> <7d> <5h_reset> <7d_reset>"` 注入 Codex 讀數（`-` = 讀不到）。未設時行為不變。
 F="${QUOTA_RESERVES:-$HOME/.claude/state/quota-reserves.json}"
@@ -48,7 +50,8 @@ if cmd == "list":
         print(f"{c['provider']:6} 卷  到期 {c['expires']}  {st}")
     for c in d.get("credits", []):
         last = (c.get("log") or [{}])[-1].get("t", "從未用 credit 更新")
-        print(f"{c['provider']} {KIND.get(c.get('kind') or 'session', c.get('kind'))} US${c['usd_left']}/{c['usd_total']}  到期 {c.get('expires') or '無'}  最後更新 {last}  {c.get('note', '')}")
+        cap = f"  每月上限 US${c['monthly_cap']:g}" if c.get("monthly_cap") else ""
+        print(f"{c['provider']} {KIND.get(c.get('kind') or 'session', c.get('kind'))} US${c['usd_left']}/{c['usd_total']}  到期 {c.get('expires') or '無'}{cap}  最後更新 {last}  {c.get('note', '')}")
 elif cmd == "use":
     p = a[0] if a else sys.exit("usage: use <claude|codex>")
     cs = sorted((c for c in d["cards"] if c["provider"] == p and live(c)), key=lambda c: ts(c["expires"]))
@@ -88,5 +91,16 @@ elif cmd == "add-credit":
     d.setdefault("credits", []).append({"provider": a[0], "kind": a[1], "usd_left": v, "usd_total": v, "expires": exp,
                                         "log": [{"t": datetime.now().astimezone().isoformat(timespec="seconds"), "usd_left": v}]})
     save(); print(f"已新增 {a[0]}（{KIND[a[1]]}）US${v:g}，到期 {exp or '無'}")
+elif cmd == "cap":
+    if len(a) < 2: sys.exit("usage: cap <provider> <USD|none>")
+    cs = sorted((c for c in d.get("credits", []) if c.get("provider") == a[0] and exp_of(c) > now), key=exp_of)
+    if not cs: sys.exit(f"沒有未過期的 {a[0]} 點數；先用 add-credit 新增一筆")
+    c = cs[0]
+    if (c.get("kind") or "session") != "usage": sys.exit("每月支出上限只適用使用量額度（kind=usage）")
+    if a[1] == "none": c.pop("monthly_cap", None); save(); print(f"已拿掉 {a[0]} 的每月支出上限"); sys.exit(0)
+    try: v = float(a[1])
+    except ValueError: sys.exit(f"上限不是數字：{a[1]}")
+    if v <= 0: sys.exit("上限要大於 0；要拿掉請用 none")
+    c["monthly_cap"] = v; save(); print(f"已設定 {a[0]} 每月支出上限 US${v:g}")
 else: sys.exit(f"未知指令 {cmd}")
 PY
