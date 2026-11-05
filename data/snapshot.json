@@ -1,5 +1,5 @@
 {
- "generated_at": 1793863528,
+ "generated_at": 1793863819,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -11,7 +11,7 @@
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 83% used 29% surplus 54 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 98%",
+  "claude: rich — week elapsed 83% used 29% surplus 54 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 97%",
   "codex:  rich — 5h left 92% week left 93% surplus 2",
   "matrix: (rich,rich) → mode 1; override - → route delegate",
   "note:   codex ok → rich（有 2 張卷）"
@@ -20,12 +20,12 @@
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "98",
+  "claude_left5": "97",
   "claude_left7": "71",
   "claude_surplus": "54",
-  "claude_reset_h": "29",
+  "claude_reset_h": "28",
   "claude_proj7": "35",
-  "claude_runway_h": "341",
+  "claude_runway_h": "342",
   "claude_cards": "0",
   "codex_raw": "ok",
   "codex_policy": "rich",
@@ -34,21 +34,21 @@
   "codex_left7": "93",
   "codex_surplus": "2",
   "codex_reset_h": "153",
-  "codex_proj7": "79",
-  "codex_runway_h": "198",
+  "codex_proj7": "78",
+  "codex_runway_h": "199",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 2.0,
+   "used": 3.0,
    "resets_at": 1793871600.0
   },
   "week": {
    "used": 29.0,
    "resets_at": 1793966400.0
   },
-  "updated_at": 1793863527,
+  "updated_at": 1793863818,
   "surplus": 54.0
  },
  "codex": {
@@ -98,7 +98,7 @@
   {
    "provider": "claude-cloud",
    "kind": "session",
-   "usd_left": 40.0,
+   "usd_left": 11.0,
    "usd_total": 100.0,
    "expires": "2026-11-05T15:59:00+08:00",
    "monthly_cap": null,
@@ -114,6 +114,10 @@
     [
      1793378515,
      40.0
+    ],
+    [
+     1793863639,
+     11.0
     ]
    ]
   },
@@ -123,10 +127,14 @@
    "usd_left": 31.66,
    "usd_total": 31.66,
    "expires": null,
-   "monthly_cap": null,
+   "monthly_cap": 10.0,
    "log": [
     [
      1793375522,
+     31.66
+    ],
+    [
+     1793863639,
      31.66
     ]
    ]
