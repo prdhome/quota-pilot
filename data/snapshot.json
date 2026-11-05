@@ -1,25 +1,31 @@
 {
- "generated_at": 1793862980,
+ "generated_at": 1793863528,
  "mode": {
-  "mode": "5",
+  "mode": "1",
   "hub": "opus",
   "route": "delegate",
   "subagent": "sonnet",
-  "claude": "unknown",
+  "claude": "rich",
   "codex": "rich",
   "override": "-",
   "card": "-"
  },
  "explain": [
-  "claude: unknown — stale 9.9h → default opus",
+  "claude: rich — week elapsed 83% used 29% surplus 54 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 98%",
   "codex:  rich — 5h left 92% week left 93% surplus 2",
-  "matrix: (unknown,rich) → mode 5; override - → route delegate",
+  "matrix: (rich,rich) → mode 1; override - → route delegate",
   "note:   codex ok → rich（有 2 張卷）"
  ],
  "detail": {
-  "claude_raw": "unknown",
-  "claude_policy": "unknown",
-  "claude_fresh": "stale",
+  "claude_raw": "rich",
+  "claude_policy": "rich",
+  "claude_fresh": "fresh",
+  "claude_left5": "98",
+  "claude_left7": "71",
+  "claude_surplus": "54",
+  "claude_reset_h": "29",
+  "claude_proj7": "35",
+  "claude_runway_h": "341",
   "claude_cards": "0",
   "codex_raw": "ok",
   "codex_policy": "rich",
@@ -28,22 +34,22 @@
   "codex_left7": "93",
   "codex_surplus": "2",
   "codex_reset_h": "153",
-  "codex_proj7": "80",
-  "codex_runway_h": "196",
+  "codex_proj7": "79",
+  "codex_runway_h": "198",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 0.0,
-   "resets_at": 1793827200.0
+   "used": 2.0,
+   "resets_at": 1793871600.0
   },
   "week": {
-   "used": 27.0,
+   "used": 29.0,
    "resets_at": 1793966400.0
   },
-  "updated_at": 1793827171,
-  "surplus": 55.9
+  "updated_at": 1793863527,
+  "surplus": 54.0
  },
  "codex": {
   "five": {
@@ -54,7 +60,7 @@
    "used": 7.0,
    "resets_at": 1794414637.0
   },
-  "surplus": 1.8
+  "surplus": 1.9
  },
  "cards": [
   {
@@ -95,6 +101,7 @@
    "usd_left": 40.0,
    "usd_total": 100.0,
    "expires": "2026-11-05T15:59:00+08:00",
+   "monthly_cap": null,
    "log": [
     [
      1793374074,
@@ -116,6 +123,7 @@
    "usd_left": 31.66,
    "usd_total": 31.66,
    "expires": null,
+   "monthly_cap": null,
    "log": [
     [
      1793375522,

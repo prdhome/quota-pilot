@@ -1,0 +1,14 @@
+{"p": "codex", "kind": "reopen", "t": 1792045132, "left": 51.0}
+{"p": "claude", "kind": "end", "t": 1792151749, "left": 19.0, "gap_h": 0.3}
+{"p": "codex", "kind": "reopen", "t": 1792270013, "left": 44.0}
+{"p": "codex", "kind": "reopen", "t": 1792479191, "left": 45.0}
+{"p": "claude", "kind": "zero", "t": 1792600031, "left": 2.0}
+{"p": "codex", "kind": "reopen", "t": 1792690205, "left": 28.0}
+{"p": "claude", "kind": "end", "t": 1792756947, "left": 35.0, "gap_h": 0.5}
+{"p": "codex", "kind": "reopen", "t": 1792778581, "left": 61.0}
+{"p": "codex", "kind": "reopen", "t": 1792910367, "left": 58.0}
+{"p": "codex", "kind": "reopen", "t": 1792995219, "left": 84.0}
+{"p": "codex", "kind": "reopen", "t": 1793170368, "left": 55.0}
+{"p": "codex", "kind": "reopen", "t": 1793285940, "left": 63.0}
+{"p": "claude", "kind": "end", "t": 1793361797, "left": 8.0, "gap_h": 0.5}
+{"p": "codex", "kind": "reopen", "t": 1793810538, "left": 7.0}
