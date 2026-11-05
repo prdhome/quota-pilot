@@ -89,6 +89,8 @@ for (const name of names) {
           models: [...q('#tokens-table tr[data-model]')].map(e => e.dataset.model), note: $('tokens-note').textContent },
         cyc: { text: $('cycles').innerText, charts: [...q('#cycles .cyc-chart')].map(b => ({ p: b.dataset.p, bars: [...b.querySelectorAll('.cyc-bar')].map(g => g.dataset.tag) })),
           notes: [...q('#cycles .cyc-note')].map(e => e.textContent) },
+        cache: { text: $('cache-tiles').textContent, tiles: [...q('#cache-tiles .wt')].map(e => ({ p: e.dataset.p, level: e.dataset.level, num: e.querySelector('.wt-num').textContent })),
+          lines: q('#cache-chart .cache-line').length, head: [...q('#tokens-table th')].map(e => e.textContent).join('|') },
         follow: { rows: q('#follow .fol-row[data-d]').length, text: $('follow').innerText },
         qrate: { hidden: $('qrate').hidden, tiles: [...q('#qrate-tiles .wt')].map(e => e.innerText.replace(/\n/g, ' ')), lines: q('#qrate-chart .qr-line').length },
         credit: [...q('#reserves .res-row[data-kind="credit"] .credit-burn')].map(e => ({ level: e.dataset.level, text: e.textContent, label: e.closest('.res-row').querySelector('.tag').textContent })),
@@ -188,8 +190,10 @@ for (const name of names) {
     check(`${t}：5h 尖峰熱圖 2 張、每列 24 格、有摘要`, r.peaks.length === 2 && r.peaks.every(x => !sc[x.p] ? true : x.rows >= 1 && x.cells === x.rows * 24 && x.sev > 0 && /5h (偏低多在 \d+–\d+ 時|沒有偏低)/.test(x.note)), JSON.stringify(r.peaks.map(({ sev, ...x }) => x)));
     if (sc.tokens === null) {
       errors.splice(0, errors.length, ...errors.filter(e => !/tokens\.json|404 \(File not found\)|status of 404/.test(e)));
-      check(`${t}：沒有 tokens.json → Token 區塊顯示「還沒接上」、額度換算不顯示`, r.tok.tiles === 0 && r.tok.text.includes('還沒接上') && r.qrate.hidden && r.follow.rows === 0 && r.follow.text.includes('還沒接上'), JSON.stringify({ tok: r.tok, qrate: r.qrate, follow: r.follow }));
+      check(`${t}：沒有 tokens.json → Token 區塊顯示「還沒接上」、額度換算不顯示`, r.tok.tiles === 0 && r.tok.text.includes('還沒接上') && r.qrate.hidden && r.cache.tiles.length === 0 && r.cache.text.includes('還沒接上') && r.follow.rows === 0 && r.follow.text.includes('還沒接上'), JSON.stringify({ tok: r.tok, qrate: r.qrate, follow: r.follow }));
     } else {
+      check(`${t}：快取命中率 2 格（照 fixture 的 token 數：兩邊都是 2M ÷ 2.14M ≈ 93%、跟前 7 天持平）、兩條折線、模型表多一欄`,
+        r.cache.tiles.map(x => `${x.p}:${x.num}:${x.level}`).join() === 'claude:93%:ok,codex:93%:ok' && r.cache.lines === 2 && r.cache.head.includes('快取命中'), JSON.stringify(r.cache));
       check(`${t}：建議與實際 7 列`, r.follow.rows === 7, JSON.stringify(r.follow));
       check(`${t}：額度換算 2 格（有週用量的一邊寫出 US$／1%）`, !r.qrate.hidden && r.qrate.tiles.length === 2
         && ['claude', 'codex'].every((p, i) => !sc[p] || sc[p].week_used == null || /US\$[\d.,]+ ?\/ 1%|算不準/.test(r.qrate.tiles[i])), JSON.stringify(r.qrate));
@@ -319,6 +323,30 @@ for (const codexPerDay of [5, 1]) {
   check('使用量額度：沒有紀錄 → 教怎麼記；沒有扣款 → 沒有超出方案上限', u['claude-usage']?.includes('quota-reserve.sh credit claude-usage') && u['extra-usage']?.includes('近 4 天沒有扣款（沒有超出方案上限）'), JSON.stringify(u));
   check('點數速度：沒寫 kind 的舊資料都當雲端工作階段點數', r.length === 4 && r.every(x => x.label.startsWith('雲端工作階段點數')), JSON.stringify(r.map(x => x.label)));
   await page.close();
+}
+
+// --- 快取命中率：Claude 前 7 天每天 未快取 10 萬＋快取讀 90 萬（90%）、近 7 天 40 萬＋60 萬（60%）→ 掉 30 點標黃、分析分頁亮點；Codex 一直沒命中（0%）→ 持平 ---
+{
+  const D = 86400, now = Math.floor(Date.now() / 1000), K = 1e3, tok = [];
+  const day = i => { const x = new Date((now - i * D) * 1000); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+  for (let i = 0; i < 14; i++) {
+    tok.push({ d: day(i), p: 'claude', m: 'claude-opus-5-5', n: 1, s: 1, in: (i < 7 ? 400 : 100) * K, out: 10 * K, cr: (i < 7 ? 600 : 900) * K, cw5: 0, cw1h: 0 });
+    tok.push({ d: day(i), p: 'codex', m: 'gpt-6.1-sol', n: 1, s: 1, in: 2000 * K, out: 10 * K, cr: 0, cw5: 0, cw1h: 0 });
+  }
+  const tb = JSON.stringify({ generated_at: now, days: 14, skipped: {}, rows: tok });
+  for (const vp of VIEWPORTS) {
+    const { page, errors } = await open(`${base}/${names[0]}/#analysis`, vp, page => page.route('**/data/tokens.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body: tb })));
+    const r = await page.evaluate(() => ({ tiles: Object.fromEntries([...document.querySelectorAll('#cache-tiles .wt')].map(e => [e.dataset.p, { level: e.dataset.level, text: e.innerText.replace(/\n/g, ' ') }])),
+      dot: !document.getElementById('tab-dot').hidden, pts: document.querySelectorAll('#cache-chart circle').length,
+      table: Object.fromEntries([...document.querySelectorAll('#tokens-table tr[data-model]')].map(e => [e.dataset.model, e.cells[6].textContent])),
+      hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
+    check(`快取命中率/${vp.tag}：Claude 近 7 天 60%、比前 7 天掉 30 點標黃、分析分頁亮點；Codex 0% 持平；14 天各一點；模型表 14 天合計 Claude 75%`,
+      r.tiles.claude?.level === 'warn' && r.tiles.claude.text.includes('60%') && r.tiles.claude.text.includes('比前 7 天掉 30 點') && r.dot
+        && r.tiles.codex?.level === 'ok' && r.tiles.codex.text.includes('0%') && r.tiles.codex.text.includes('前 7 天 0%（+0 點）') && r.pts === 28
+        && r.table['claude-opus-5-5'] === '75%' && r.table['gpt-6.1-sol'] === '0%' && errors.length === 0 && !r.hscroll, JSON.stringify({ errors, r }));
+    if (SHOTS) await page.locator('#cache-card').screenshot({ path: `${SHOTS}/cache-${vp.tag}.png` });
+    await page.close();
+  }
 }
 
 // --- 建議與實際：UTC 時區，前 4 天各一種情況（每天 48 列歷史＋當天 token）：
