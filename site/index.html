@@ -162,6 +162,7 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .qrate-cmp { font-size: 13px; margin: 8px 0 0; }
 .qrate-cmp b { font-variant-numeric: tabular-nums; }
 .qrate-chart svg { height: 150px; }
+.wt[data-level="warn"] { border-color: var(--warning); }
 .qrate .wt-num { white-space: nowrap; }
 /* 週期趨勢：每個週期結束時剩多少（data/cycles.jsonl，長期保留） */
 .cyc { position: relative; min-width: 0; }
@@ -389,6 +390,14 @@ footer a { color: inherit; }
       <p class="tok-note" id="qrate-note"></p>
     </section>
 
+    <section class="card" id="cache-card" data-tab="analysis" aria-labelledby="h-cache">
+      <h2 id="h-cache">快取命中率（近 14 天）</h2>
+      <div class="work qrate-tiles" id="cache-tiles"></div>
+      <div class="legend" id="cache-legend" style="margin-top:10px"><span><i style="background:var(--claude)"></i>Claude 每日</span><span><i style="background:var(--codex)"></i>Codex 每日</span></div>
+      <div class="tok-chart qrate-chart" id="cache-chart"><div class="tip"></div></div>
+      <p class="tok-note" id="cache-note"></p>
+    </section>
+
     <section class="card" id="follow-card" data-tab="analysis" aria-labelledby="h-follow">
       <h2 id="h-follow">建議與實際（近 7 天）</h2>
       <p class="fol-sum" id="follow-sum"></p>
@@ -550,6 +559,16 @@ const ACTION = {
     none: '還沒有記錄到週期結束（每輪推送從 14 天歷史併入）。',
     off: '還沒接上（沒有 data/cycles.jsonl）：在 Mac 上 pull 新版 bin/ 後下一輪推送就會有；要補舊資料跑 git fetch origin gh-pages 後 python3 bin/analyze.py --gh-pages --all-commits --update-cycles .pages/data/cycles.jsonl。',
     tip: (kind, d, left, gap) => kind === 'end' ? `${d} 結束 · 剩 ${left}%${gap > ACTION.lastCycle.gapH ? `（最後讀數離結束 ${Math.round(gap)} 小時）` : ''}` : `${d} 提前重置 · 當時剩 ${left}%`,
+  },
+  // 快取命中率（tokens.json）：快取讀取 ÷ 全部輸入（未快取＋快取讀＋快取寫）；近 days 天對照再前 days 天，掉 ≥ drop 個百分點標黃（分析分頁亮點）；
+  // 輸入合計 < minIn 不比較；每日折線只畫輸入 ≥ minDayIn 的日子
+  cache: {
+    days: 7, drop: 10, minIn: 1e6, minDayIn: 1e5,
+    sub: (prev, diff) => prev == null ? '前 7 天沒有足夠資料可比' : `前 7 天 ${prev}%（${diff >= 0 ? '+' : ''}${diff} 點）`,
+    dropText: d => `比前 7 天掉 ${d} 點`,
+    few: '近 7 天輸入太少，算不準',
+    none: '還沒接上（沒有 data/tokens.json）。',
+    note: '命中率＝快取讀取 ÷ 全部輸入 token。快取讀取的單價只有未快取輸入的 5–10%（見上方 PRICES），命中率越高越省。命中率掉下來通常是：常開新 session、上下文被清掉（/clear、compact）、CLAUDE.md 或系統提示常改、或兩次請求間隔超過快取存活時間（Claude 5 分鐘／1 小時）。',
   },
   // 建議與實際：每天閘門／主控建議的時間占比（history 每列＝30 分鐘）對照 tokens.json 的實際輸出 token 占比
   // 「不派 Codex」占當天 ≥ gateMin 而 Codex 輸出占比 ≥ codexMax → 標黃；建議 Sonnet 占 ≥ gateMin 而 Opus 占 Claude（Opus＋Sonnet）輸出 ≥ opusMax → 標黃；兩邊輸出合計 < minOut 不判讀
@@ -840,8 +859,9 @@ function render() {
   renderRate();
   renderFollow();
   renderCycles();
-  // 分析頁有黃標（規則常卡在門檻邊緣、沒照建議）時，在「分析」分頁旁亮一個點
-  $('tab-dot').hidden = !document.querySelector('#stability .stab-verdict[data-level="warn"], #follow .fol-row[data-tag="codex"], #follow .fol-row[data-tag="opus"]');
+  renderCache();
+  // 分析頁有黃標（規則常卡在門檻邊緣、沒照建議、快取命中率明顯下降）時，在「分析」分頁旁亮一個點
+  $('tab-dot').hidden = !document.querySelector('#stability .stab-verdict[data-level="warn"], #follow .fol-row[data-tag="codex"], #follow .fol-row[data-tag="opus"], #cache-tiles .wt[data-level="warn"]');
   drawCharts();
 }
 
@@ -1016,8 +1036,8 @@ function renderTokens() {
   const agg = {};
   for (const r of tokens.rows) { const a = agg[r.m] ||= { m: r.m, p: r.p, n: 0, in: 0, out: 0, cr: 0, cw5: 0, cw1h: 0 }; for (const k of ['n', 'in', 'out', 'cr', 'cw5', 'cw1h']) a[k] += r[k] || 0; }
   const list = Object.values(agg).map(a => ({ ...a, c: costOf(a) })).sort((a, b) => (b.c ?? -1) - (a.c ?? -1));
-  const tb = el('table', {}, el('tr', {}, ...['模型', '請求', '未快取輸入', '輸出', '快取讀', '快取寫', '估算'].map(h => el('th', {}, h))));
-  for (const a of list) tb.append(el('tr', { 'data-model': a.m }, ...[a.m, a.n.toLocaleString('en-US'), ktok(a.in), ktok(a.out), ktok(a.cr), ktok(a.cw5 + a.cw1h), a.c == null ? '沒有單價' : usd(a.c)].map(v => el('td', {}, v))));
+  const tb = el('table', {}, el('tr', {}, ...['模型', '請求', '未快取輸入', '輸出', '快取讀', '快取寫', '快取命中', '估算'].map(h => el('th', {}, h))));
+  for (const a of list) { const h = hitOf(a); tb.append(el('tr', { 'data-model': a.m }, ...[a.m, a.n.toLocaleString('en-US'), ktok(a.in), ktok(a.out), ktok(a.cr), ktok(a.cw5 + a.cw1h), h == null ? '–' : `${Math.round(100 * h)}%`, a.c == null ? '沒有單價' : usd(a.c)].map(v => el('td', {}, v)))); }
   $('tokens-table').replaceChildren(tb);
   const unknown = list.filter(a => a.c == null).map(a => a.m);
   $('tokens-note').replaceChildren('按 API 單價估算（', el('b', {}, `${PRICES_AS_OF} 官方價目`), '），不是實際帳單：訂閱方案不按 token 計費，這裡用來比較模型與每天的用量規模。',
@@ -1176,6 +1196,70 @@ function drawCycles() {
   }
 }
 
+// 快取命中率：每天兩邊的快取讀取 ÷ 全部輸入；近 7 天 vs 前 7 天
+const inOf = r => (r.in || 0) + (r.cr || 0) + (r.cw5 || 0) + (r.cw1h || 0);
+const hitOf = r => inOf(r) ? (r.cr || 0) / inOf(r) : null;
+function cacheDays() {
+  const by = {};
+  for (let i = 13; i >= 0; i--) by[dayKey(nowS() - i * 86400)] = { claude: { in: 0, cr: 0 }, codex: { in: 0, cr: 0 } };
+  for (const r of tokens?.rows || []) { const d = by[r.d]?.[r.p]; if (d) { d.in += inOf(r); d.cr += r.cr || 0; } }
+  return Object.entries(by);
+}
+function cacheOf() {
+  const K = ACTION.cache, days = cacheDays(), out = {};
+  for (const p of ['claude', 'codex']) {
+    const win = ds => { const a = ds.reduce((o, [, v]) => ({ in: o.in + v[p].in, cr: o.cr + v[p].cr }), { in: 0, cr: 0 }); return a.in >= K.minIn ? a.cr / a.in : null; };
+    const cur = win(days.slice(-K.days)), prev = win(days.slice(-2 * K.days, -K.days)), diff = cur != null && prev != null ? Math.round(100 * cur) - Math.round(100 * prev) : null;
+    out[p] = { cur, prev, diff, warn: diff != null && -diff >= K.drop };
+  }
+  return out;
+}
+function renderCache() {
+  const K = ACTION.cache, none = !tokens || !Array.isArray(tokens.rows);
+  $('cache-legend').hidden = none; $('cache-chart').hidden = none;
+  if (none) { $('cache-tiles').replaceChildren(el('p', { class: 'empty', style: 'grid-column:1/-1;padding:4px 0;text-align:left' }, K.none)); $('cache-note').textContent = ''; return; }
+  const c = cacheOf(), pc = v => Math.round(100 * v);
+  $('cache-tiles').replaceChildren(...['claude', 'codex'].map(p => { const o = c[p];
+    return el('div', { class: 'wt', 'data-p': p, 'data-level': o.warn ? 'warn' : o.cur == null ? 'none' : 'ok', ...(o.cur == null ? { 'data-none': '' } : {}) },
+      el('p', { class: 'wt-label' }, `${NAME[p]} · 近 7 天`), el('p', { class: 'wt-num' }, o.cur == null ? '–' : `${pc(o.cur)}%`),
+      el('p', { class: 'wt-sub' }, o.cur == null ? K.few : o.warn ? K.dropText(-o.diff) : K.sub(o.prev == null ? null : pc(o.prev), o.diff))); }));
+  $('cache-note').textContent = K.note;
+}
+// 每日命中率折線：輸入太少的日子斷開
+function drawCache() {
+  const box = $('cache-chart'); box.querySelector('svg')?.remove();
+  if (!tokens || !Array.isArray(tokens.rows)) return;
+  const K = ACTION.cache, days = cacheDays(), tip = box.querySelector('.tip'), W = box.clientWidth || 600, H = 150, L = 44, R = 8, T = 8, B = 20;
+  const val = (v, p) => v[p].in >= K.minDayIn ? v[p].cr / v[p].in : null;
+  const ns = 'http://www.w3.org/2000/svg', sv = (tag, a) => { const e = document.createElementNS(ns, tag); for (const q in a) e.setAttribute(q, a[q]); return e; };
+  const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': '近 14 天每日快取命中率（Claude 與 Codex）' });
+  const bw = (W - L - R) / days.length, xc = i => L + i * bw + bw / 2, y = v => T + (H - T - B) * (1 - v);
+  for (const v of [0, 0.5, 1]) {
+    svg.append(sv('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v ? 'var(--grid)' : 'var(--axis)', 'stroke-width': 1 }));
+    const tx = sv('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = `${v * 100}%`; svg.append(tx);
+  }
+  for (const [p, col] of [['claude', 'var(--claude)'], ['codex', 'var(--codex)']]) {
+    let d = '';
+    days.forEach(([, v], i) => { const h = val(v, p); if (h == null) return; d += `${d && i && val(days[i - 1][1], p) != null ? 'L' : 'M'}${xc(i)},${y(h)}`; });
+    if (d) svg.append(sv('path', { class: 'cache-line', 'data-p': p, d, fill: 'none', stroke: col, 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+    days.forEach(([, v], i) => { const h = val(v, p); if (h != null) svg.append(sv('circle', { cx: xc(i), cy: y(h), r: 3, fill: col })); });
+  }
+  days.forEach(([d, v], i) => {
+    const g = sv('g', { 'data-d': d });
+    g.append(sv('rect', { x: L + i * bw, y: T, width: bw, height: H - T - B, fill: 'transparent' }));
+    if ((days.length - 1 - i) % (W < 420 ? 3 : 2) === 0) { const tx = sv('text', { x: xc(i), y: H - 4, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = d.slice(5).replace('-', '/').replace(/^0/, ''); g.append(tx); }
+    const part = p => { const h = val(v, p); return `${NAME[p]} <b>${h == null ? '–' : `${Math.round(100 * h)}%`}</b>`; };
+    g.addEventListener('pointerenter', () => {
+      tip.innerHTML = `${d.slice(5).replace('-', '/')}　${part('claude')}　${part('codex')}`;
+      tip.style.display = 'block'; const bb = svg.getBoundingClientRect();
+      tip.style.left = Math.min(bb.width - tip.offsetWidth, Math.max(0, xc(i) * bb.width / W - tip.offsetWidth / 2)) + 'px'; tip.style.top = '-24px';
+    });
+    g.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+    svg.append(g);
+  });
+  box.prepend(svg);
+}
+
 // 建議與實際：每天閘門與主控建議的時間占比 vs 實際輸出 token 占比
 function followDays() {
   const F = ACTION.follow, out = [];
@@ -1231,7 +1315,7 @@ function renderWork() {
       : tile('週回顧待處理', '–', '', '還沒接上', true));
   $('work-note').textContent = W.note;
 }
-const drawCharts = () => { drawTrend(); drawBurns(); drawMatrixPath(); drawTokens(); drawRate(); drawCycles(); };
+const drawCharts = () => { drawTrend(); drawBurns(); drawMatrixPath(); drawTokens(); drawRate(); drawCycles(); drawCache(); };
 
 const WEEK = 604800;
 // 目前週期：S＝開始、R＝結束（已過 reset 就往後推一週、用量歸零）
