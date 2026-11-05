@@ -79,7 +79,7 @@ for (const name of names) {
         next: $('next').textContent, harness: vis('harness') ? $('harness').textContent : '',
         cmd: document.querySelector('#cmds .cmd')?.dataset.copy,
         chipText: [...q('#chips .chip')].map(e => e.textContent),
-                solo: $('lower').classList.contains('solo'), resets: q('#chart .resets line.reset').length,
+                solo: $('res-card').classList.contains('solo'), resets: q('#chart .resets line.reset').length,
         work: { tiles: [...q('#work .wt')].map(e => e.innerText.replace(/\n/g, ' ')), empty: $('work').innerText },
         eff: document.querySelector('#cmds .eff')?.dataset.effort ?? null,
         lastCycles: [...q('#providers .last-cycle')].map(e => ({ tag: e.dataset.tag, text: e.textContent })),
@@ -207,8 +207,22 @@ for (const name of names) {
     const deadCards = cards.filter(c => c.used_at || c.expires_in <= 0).length;
     check(`${t}：用卷效果${deadCards ? ` ${deadCards} 筆` : '不顯示（沒有已用或過期的卷）'}`, deadCards ? r.ce?.length === deadCards : r.ce === null, JSON.stringify(r.ce));
     check(`${t}：規則穩定度 3 格＋判讀（warn ⇔ 單日 ≥6 或來回 ≥3）`, r.stab && r.stab.tiles === 3 && r.stabLevel === (r.stab.max >= 6 || r.stab.flaps >= 3 ? 'warn' : 'ok'), JSON.stringify({ stab: r.stab, level: r.stabLevel }));
+    // 分頁：預設「今日」只顯示今日卡片；點「分析」後切頁、網址 #analysis、分析頁圖表照實際寬度重畫；再點「今日」切回
+    const view = () => page.evaluate(() => { const vis = id => !!document.getElementById(id).offsetParent, svg = document.querySelector('#cycles .cyc-chart svg');
+      return { view: document.body.dataset.view, hash: location.hash, today: ['action', 'res-card', 'tokens-card', 'trend-card'].map(vis), analysis: ['follow-card', 'cycles-card', 'work-card', 'matrix-card', 'peaks-card'].map(vis),
+        selected: document.querySelector('.tabs [aria-selected="true"]').dataset.view, svgFit: svg ? Math.abs(svg.viewBox.baseVal.width - svg.parentElement.clientWidth) < 1 : null }; });
+    const v0 = await view();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
+    await page.click('#tab-analysis');
+    const v1 = await view();
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}-analysis.png`, fullPage: true });
     if (SHOTS && name === 'rich') await page.locator('#cycles-card').screenshot({ path: `${SHOTS}/cycles-${vp.tag}.png` });
+    await page.click('#tab-today');
+    const v2 = await view();
+    check(`${t}：分頁預設今日、點分析切頁（網址 #analysis、圖表照實際寬度重畫）、點今日切回`,
+      v0.view === 'today' && v0.selected === 'today' && v0.today.every(Boolean) && !v0.analysis.some(Boolean)
+        && v1.view === 'analysis' && v1.hash === '#analysis' && v1.selected === 'analysis' && !v1.today.some(Boolean) && v1.analysis.every(Boolean) && (sc.cycles === null ? v1.svgFit === null : v1.svgFit === true)
+        && v2.view === 'today' && v2.hash === '' && v2.today.every(Boolean), JSON.stringify({ v0, v1, v2 }));
     await page.close();
   }
 }
@@ -222,7 +236,7 @@ for (const name of names) {
   }
   const body = rows.map(r => JSON.stringify(r)).join('\n') + '\n';
   for (const vp of VIEWPORTS) {
-    const { page, errors } = await open(`${base}/${names[0]}/`, vp, page => page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body })), { timezoneId: 'UTC' });
+    const { page, errors } = await open(`${base}/${names[0]}/#analysis`, vp, page => page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body })), { timezoneId: 'UTC' });
     const r = await page.evaluate(() => [...document.querySelectorAll('#peaks .peak')].map(b => { const n = b.querySelector('.peak-note');
       return { p: b.dataset.p, hit: n.dataset.hit, note: n.textContent, crit: b.querySelectorAll('.c[data-sev="crit"]').length, warn: b.querySelectorAll('.c[data-sev="warn"]').length,
         hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }; }));
@@ -270,7 +284,7 @@ for (const codexPerDay of [5, 1]) {
   for (let i = 0; i < 3; i++) tok.push({ d, p: 'claude', m: 'claude-opus-5-5', n: 1, s: 1, in: M, out: M, cr: M, cw5: M, cw1h: M }, { d, p: 'codex', m: 'gpt-6.1-sol', n: 1, s: 1, in: 0, out: M, cr: 0, cw5: 0, cw1h: 0 });
   const hb = rows.map(r => JSON.stringify(r)).join('\n') + '\n', tb = JSON.stringify({ generated_at: now, days: 14, skipped: {}, rows: tok });
   for (const vp of codexPerDay === 5 ? VIEWPORTS : VIEWPORTS.slice(0, 1)) {
-    const { page, errors } = await open(`${base}/${names[0]}/`, vp, async page => {
+    const { page, errors } = await open(`${base}/${names[0]}/#analysis`, vp, async page => {
       await page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body: hb }));
       await page.route('**/data/tokens.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body: tb }));
     }, { timezoneId: 'UTC' });
@@ -322,18 +336,18 @@ for (const codexPerDay of [5, 1]) {
   tr(1, 'claude', 'claude-opus-5-5', 5 * K); tr(1, 'codex', 'gpt-6.1-sol', 5 * K);
   const hb = rows.map(r => JSON.stringify(r)).join('\n') + '\n', tb = JSON.stringify({ generated_at: Math.floor(Date.now() / 1000), days: 14, skipped: {}, rows: tok });
   for (const vp of VIEWPORTS) {
-    const { page, errors } = await open(`${base}/${names[0]}/`, vp, async page => {
+    const { page, errors } = await open(`${base}/${names[0]}/#analysis`, vp, async page => {
       await page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body: hb }));
       await page.route('**/data/tokens.json', rt => rt.fulfill({ status: 200, contentType: 'application/json', body: tb }));
     }, { timezoneId: 'UTC' });
     const r = await page.evaluate(() => ({ rows: Object.fromEntries([...document.querySelectorAll('#follow .fol-row')].map(e => [e.dataset.d, { tag: e.dataset.tag, text: e.innerText.replace(/\n/g, ' ') }])),
-      sum: document.getElementById('follow-sum').textContent, hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
+      sum: document.getElementById('follow-sum').textContent, dot: !document.getElementById('tab-dot').hidden, hscroll: document.documentElement.scrollWidth > document.documentElement.clientWidth }));
     const g = i => r.rows[day(i)] || {};
     check(`建議與實際/${vp.tag}：照建議／不派 Codex 仍用 Codex 50%／建議 Sonnet 仍用 Opus 75%／用量少／今天沒有建議紀錄`,
       g(4).tag === 'ok' && g(4).text.includes('Codex 實際 75%') && g(3).tag === 'codex' && g(3).text.includes('Codex 實際 50%') && g(2).tag === 'opus' && g(2).text.includes('Opus 實際 75%')
         && g(1).tag === 'few' && g(0).tag === 'nohist', JSON.stringify(r.rows));
-    check(`建議與實際/${vp.tag}：摘要寫出 2 天沒照建議與原因、無 JS error、無水平捲動`,
-      r.sum.includes('近 7 天有 2 天沒照建議') && r.sum.includes('不派 Codex 的時段仍在用 Codex') && r.sum.includes('建議 Sonnet 時仍多用 Opus') && errors.length === 0 && !r.hscroll, JSON.stringify({ sum: r.sum, errors }));
+    check(`建議與實際/${vp.tag}：摘要寫出 2 天沒照建議與原因、「分析」分頁亮黃點、無 JS error、無水平捲動`,
+      r.dot && r.sum.includes('近 7 天有 2 天沒照建議') && r.sum.includes('不派 Codex 的時段仍在用 Codex') && r.sum.includes('建議 Sonnet 時仍多用 Opus') && errors.length === 0 && !r.hscroll, JSON.stringify({ sum: r.sum, errors }));
     if (SHOTS) await page.locator('#follow-card').screenshot({ path: `${SHOTS}/follow-${vp.tag}.png` });
     await page.close();
   }
@@ -406,7 +420,7 @@ for (const codexPerDay of [5, 1]) {
     const body = rows.map(r => JSON.stringify(r)).join('\n') + '\n', f = `${tmp}/${hn}.jsonl`;
     writeFileSync(f, body);
     const a = JSON.parse(execFileSync('python3', ['-I', `${root}bin/analyze.py`, '--json', f], { env: { ...process.env, TZ: 'UTC' } }).toString()).switches;
-    const { page, errors } = await open(`${base}/${names[0]}/`, VIEWPORTS[0], page => page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body })), { timezoneId: 'UTC' });
+    const { page, errors } = await open(`${base}/${names[0]}/#analysis`, VIEWPORTS[0], page => page.route('**/data/history.jsonl', rt => rt.fulfill({ status: 200, contentType: 'text/plain', body })), { timezoneId: 'UTC' });
     const r = await page.evaluate(() => { const b = document.querySelector('#stability .stab'), v = document.querySelector('#stability .stab-verdict');
       return { max: +b.dataset.max, flaps: +b.dataset.flaps, hub: +b.dataset.hub, level: v.dataset.level, text: v.textContent }; });
     check(`規則穩定度/${hn}：單日最多 ${a.max_per_day}、來回 ${a.flaps}、主控單日 ${a.hub_max_per_day}（同 analyze.py）→ ${wantLevel}`,
