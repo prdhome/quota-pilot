@@ -164,6 +164,11 @@ h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); margin: 0 0 12px; t
 .qrate-cmp b { font-variant-numeric: tabular-nums; }
 .qrate-chart svg { height: 150px; }
 .qrate .wt-num { white-space: nowrap; }
+/* 週期趨勢：每個週期結束時剩多少（data/cycles.jsonl，長期保留） */
+.cyc { position: relative; min-width: 0; }
+.cyc svg { display: block; width: 100%; height: 150px; overflow: visible; }
+.cyc-note { font-size: 13px; margin: 6px 0 0; }
+.cyc-note b { font-variant-numeric: tabular-nums; }
 /* 建議與實際：每天閘門／主控建議的時間占比 vs 實際輸出 token 占比 */
 .fol { display: grid; gap: 8px; margin-top: 4px; }
 .fol-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 190px; gap: 4px 14px; align-items: start; font-size: 12px; }
@@ -365,6 +370,12 @@ footer a { color: inherit; }
       </div>
     </section>
 
+    <section class="card" id="cycles-card" aria-labelledby="h-cycles">
+      <h2 id="h-cycles">週期趨勢（全部紀錄）</h2>
+      <div class="legend routes" id="cycles-legend" style="margin:0 0 8px"></div>
+      <div class="peaks" id="cycles"></div>
+    </section>
+
     <section class="card" id="follow-card" aria-labelledby="h-follow">
       <h2 id="h-follow">建議與實際（近 7 天）</h2>
       <p class="fol-sum" id="follow-sum"></p>
@@ -519,6 +530,17 @@ const ACTION = {
     noCmp: '兩邊都要有足夠的週用量才能比較。',
     note: '數字越大＝每 1% 週額度換到越多工作量。Claude 週額度也會被網頁版、App、雲端工作階段用掉，這些不在 token 統計裡，所以 Claude 的換算值偏低（Codex 雲端任務同理）。Mac 關機期間的用量會算在開機後那一天，看合計比看單日準。',
   },
+  // 週期趨勢（data/cycles.jsonl，analyze.py --update-cycles 每輪推送時從 history 併入、長期保留）：每個週期結束時剩多少；
+  // 剩 ≥ lastCycle.waste 浪費、≤ lastCycle.empty 見底（同上週期結算與 analyze.py）；最多畫最近 max 個；近 recent 個的平均另列
+  cycles: {
+    max: 26, recent: 4,
+    legend: [['ok', '自然結束'], ['waste', '浪費（剩 ≥20%）'], ['empty', '見底（≤3%）'], ['early', '提前重置（用卷或供應商）']],
+    sum: (n, avg, recent, k, waste, empty) => [`自然結束 ${n} 次：平均剩 `, el('b', {}, `${avg}%`), ...(recent != null ? [`（近 ${k} 次 `, el('b', {}, `${recent}%`), '）'] : []), `；浪費 ${waste} 次、見底 ${empty} 次。`],
+    early: n => n ? ` 提前重置 ${n} 次（不算浪費）。` : '',
+    none: '還沒有記錄到週期結束（每輪推送從 14 天歷史併入）。',
+    off: '還沒接上（沒有 data/cycles.jsonl）：在 Mac 上 pull 新版 bin/ 後下一輪推送就會有；要補舊資料跑 git fetch origin gh-pages 後 python3 bin/analyze.py --gh-pages --all-commits --update-cycles .pages/data/cycles.jsonl。',
+    tip: (kind, d, left, gap) => kind === 'end' ? `${d} 結束 · 剩 ${left}%${gap > ACTION.lastCycle.gapH ? `（最後讀數離結束 ${Math.round(gap)} 小時）` : ''}` : `${d} 提前重置 · 當時剩 ${left}%`,
+  },
   // 建議與實際：每天閘門／主控建議的時間占比（history 每列＝30 分鐘）對照 tokens.json 的實際輸出 token 占比
   // 「不派 Codex」占當天 ≥ gateMin 而 Codex 輸出占比 ≥ codexMax → 標黃；建議 Sonnet 占 ≥ gateMin 而 Opus 占 Claude（Opus＋Sonnet）輸出 ≥ opusMax → 標黃；兩邊輸出合計 < minOut 不判讀
   follow: {
@@ -630,7 +652,7 @@ const md = t => { const d = new Date(t * 1000); return `${d.getMonth() + 1}/${d.
 const hm = t => { const d = new Date(t * 1000); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const fmtDays = sec => sec < 86400 ? `${Math.max(1, Math.round(sec / 3600))} 小時` : `${Math.floor(sec / 86400)} 天`;
 const fmtAge = sec => { const m = Math.max(0, Math.round(sec / 60)); return m < 60 ? `${m} 分鐘` : m < 1440 ? `${Math.floor(m / 60)} 小時 ${m % 60} 分` : `${Math.floor(m / 1440)} 天 ${Math.floor(m % 1440 / 60)} 小時`; };
-let snap = null, hist = [], work = null, tokens = null;
+let snap = null, hist = [], work = null, tokens = null, cycles = null;
 
 // 5h／週 reset 的白話時間：今天內「約 14:30 恢復」，否則帶日期；已過 reset（數據較舊）→「應已恢復」
 function whenBack(r, verb = '恢復') {
@@ -807,6 +829,7 @@ function render() {
   renderTokens();
   renderRate();
   renderFollow();
+  renderCycles();
   drawCharts();
 }
 
@@ -1087,6 +1110,60 @@ function drawTokens() {
   box.prepend(svg);
 }
 
+// 週期趨勢：每個 provider 一張長條圖（x＝週期依時間、y＝結束時剩 %），虛線＝浪費／見底門檻；提前重置畫成灰色斜線長條
+const CYC_FILL = { ok: 'linear-gradient(90deg,var(--claude) 50%,var(--codex) 50%)', waste: 'var(--warning)', empty: 'var(--critical)', early: 'repeating-linear-gradient(45deg,var(--r-hold) 0 2px,var(--surface-2) 2px 5px)' };
+const cycTag = e => e.kind !== 'end' ? 'early' : e.left >= ACTION.lastCycle.waste ? 'waste' : e.left <= ACTION.lastCycle.empty ? 'empty' : 'ok';
+function renderCycles() {
+  const C = ACTION.cycles;
+  $('cycles-legend').hidden = !cycles;
+  if (!cycles) { $('cycles').replaceChildren(el('p', { class: 'empty', style: 'grid-column:1/-1;padding:4px 0;text-align:left' }, C.off)); return; }
+  $('cycles-legend').replaceChildren(...C.legend.map(([k, name]) => el('span', {}, el('i', { class: 'sw', style: `background:${CYC_FILL[k]}` }), name)));
+  $('cycles').replaceChildren(...['claude', 'codex'].map(p => {
+    const all = cycles.filter(e => e.p === p && Number.isFinite(e.t) && Number.isFinite(e.left)).sort((a, b) => a.t - b.t), ev = all.slice(-C.max);
+    const box = el('div', { class: 'cyc', 'data-p': p }, el('p', { class: 'peak-name' }, el('span', { class: 'dot', style: `background:var(--${p})` }), NAME[p]));
+    const ends = all.filter(e => e.kind === 'end'), avg = xs => Math.round(xs.reduce((a, e) => a + e.left, 0) / xs.length);
+    const note = el('p', { class: 'cyc-note', 'data-n': ends.length });
+    if (!ends.length) note.textContent = C.none;
+    else note.append(...C.sum(ends.length, avg(ends), ends.length > C.recent ? avg(ends.slice(-C.recent)) : null, C.recent, ends.filter(e => cycTag(e) === 'waste').length, ends.filter(e => cycTag(e) === 'empty').length));
+    note.append(C.early(all.length - ends.length));
+    if (ev.length) box.append(el('div', { class: 'cyc-chart', 'data-p': p }, el('div', { class: 'tip' })));
+    box.append(note);
+    return box;
+  }));
+  drawCycles();
+}
+function drawCycles() {
+  if (!cycles) return;
+  const C = ACTION.cycles, ns = 'http://www.w3.org/2000/svg', sv = (tag, a) => { const e = document.createElementNS(ns, tag); for (const q in a) e.setAttribute(q, a[q]); return e; };
+  for (const box of document.querySelectorAll('#cycles .cyc-chart')) {
+    box.querySelector('svg')?.remove();
+    const p = box.dataset.p, ev = cycles.filter(e => e.p === p && Number.isFinite(e.t) && Number.isFinite(e.left)).sort((a, b) => a.t - b.t).slice(-C.max), tip = box.querySelector('.tip');
+    const W = box.clientWidth || 300, H = 150, L = 34, R = 6, T = 8, B = 20, bw = (W - L - R) / Math.max(ev.length, 6), y = v => T + (H - T - B) * (1 - Math.min(100, Math.max(0, v)) / 100);
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${NAME[p]} 每個週期結束時剩下的週額度 %` });
+    const defs = sv('defs', {}), pat = sv('pattern', { id: `cyc-hatch-${p}`, patternUnits: 'userSpaceOnUse', width: 6, height: 6, patternTransform: 'rotate(45)' });
+    pat.append(sv('rect', { width: 6, height: 6, fill: 'var(--surface-2)' }), sv('line', { x1: 0, y1: 0, x2: 0, y2: 6, stroke: 'var(--r-hold)', 'stroke-width': 3 })); defs.append(pat); svg.append(defs);
+    for (const v of [0, 50, 100]) {
+      svg.append(sv('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v ? 'var(--grid)' : 'var(--axis)', 'stroke-width': 1 }));
+      const tx = sv('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = `${v}%`; svg.append(tx);
+    }
+    for (const v of [ACTION.lastCycle.waste, ACTION.lastCycle.empty]) svg.append(sv('line', { class: 'cyc-thr', x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: v === ACTION.lastCycle.waste ? 'var(--warning)' : 'var(--critical)', 'stroke-width': 1, 'stroke-dasharray': '3 3' }));
+    ev.forEach((e, i) => {
+      const tag = cycTag(e), x = L + i * bw + Math.max(1, bw * 0.15), w = Math.max(2, bw * 0.7), h = Math.max(2, y(0) - y(e.left));
+      const g = sv('g', { class: 'cyc-bar', 'data-tag': tag });
+      g.append(sv('rect', { x, y: y(0) - h, width: w, height: h, rx: Math.min(2, w / 2), fill: tag === 'early' ? `url(#cyc-hatch-${p})` : tag === 'ok' ? `var(--${p})` : tag === 'waste' ? 'var(--warning)' : 'var(--critical)' }));
+      g.append(sv('rect', { x: L + i * bw, y: T, width: bw, height: H - T - B, fill: 'transparent' }));
+      if ((ev.length - 1 - i) % Math.max(1, Math.ceil(36 / bw)) === 0) { const tx = sv('text', { x: x + w / 2, y: H - 4, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' }); tx.textContent = md(e.t); g.append(tx); }
+      g.addEventListener('pointerenter', () => {
+        tip.textContent = C.tip(e.kind, md(e.t), Math.round(e.left), e.gap_h || 0); tip.style.display = 'block'; const bb = svg.getBoundingClientRect();
+        tip.style.left = Math.min(bb.width - tip.offsetWidth, Math.max(0, (x + w / 2) * bb.width / W - tip.offsetWidth / 2)) + 'px'; tip.style.top = '-24px';
+      });
+      g.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+      svg.append(g);
+    });
+    box.prepend(svg);
+  }
+}
+
 // 建議與實際：每天閘門與主控建議的時間占比 vs 實際輸出 token 占比
 function followDays() {
   const F = ACTION.follow, out = [];
@@ -1142,7 +1219,7 @@ function renderWork() {
       : tile('週回顧待處理', '–', '', '還沒接上', true));
   $('work-note').textContent = W.note;
 }
-const drawCharts = () => { drawTrend(); drawBurns(); drawMatrixPath(); drawTokens(); drawRate(); };
+const drawCharts = () => { drawTrend(); drawBurns(); drawMatrixPath(); drawTokens(); drawRate(); drawCycles(); };
 
 const WEEK = 604800;
 // 目前週期：S＝開始、R＝結束（已過 reset 就往後推一週、用量歸零）
@@ -1574,10 +1651,11 @@ function safeRender(fn = render) {
   catch (e) { console.error('quota-pilot render error:', e); setState('render', e.message); }
 }
 async function load() {
-  let a, b, w, k, next;
+  let a, b, w, k, y, next;
   try {
-    [a, b, w, k] = await Promise.all([fetch('data/snapshot.json', { cache: 'no-store' }), fetch('data/history.jsonl', { cache: 'no-store' }).catch(() => null),
-      fetch('data/work.json', { cache: 'no-store' }).catch(() => null), fetch('data/tokens.json', { cache: 'no-store' }).catch(() => null)]);
+    [a, b, w, k, y] = await Promise.all([fetch('data/snapshot.json', { cache: 'no-store' }), fetch('data/history.jsonl', { cache: 'no-store' }).catch(() => null),
+      fetch('data/work.json', { cache: 'no-store' }).catch(() => null), fetch('data/tokens.json', { cache: 'no-store' }).catch(() => null),
+      fetch('data/cycles.jsonl', { cache: 'no-store' }).catch(() => null)]);
     if (!a.ok) throw new Error(`HTTP ${a.status}`);
   } catch (e) { return setState('fetch', e.message); }
   try {
@@ -1590,6 +1668,8 @@ async function load() {
   if (w && w.ok) try { const j = JSON.parse(await w.text()); if (j && typeof j === 'object' && !Array.isArray(j)) work = j; } catch { console.warn('work.json 格式不對，略過'); }
   tokens = null;   // tokens.json 同樣是選配：bin/ 還沒更新或腳本失敗時只讓 Token 區塊顯示「還沒接上」
   if (k && k.ok) try { const j = JSON.parse(await k.text()); if (j && typeof j === 'object' && Array.isArray(j.rows)) tokens = j; } catch { console.warn('tokens.json 格式不對，略過'); }
+  cycles = null;   // cycles.jsonl 也是選配：沒有就讓週期趨勢顯示「還沒接上」；壞掉的行略過
+  if (y && y.ok) { cycles = []; for (const l of (await y.text()).split('\n')) { if (!l.trim()) continue; try { const e = JSON.parse(l); if (e && typeof e === 'object') cycles.push(e); } catch { console.warn('cycles.jsonl 略過格式錯誤的一行'); } } }
   setState('ok');
   safeRender();
 }

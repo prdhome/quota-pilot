@@ -4,6 +4,7 @@
  "codex": {"five_used": 10, "week_used": 90, "five_reset_in": 3600, "week_reset_in": 127008},
  "work": null,
  "tokens": null,
+ "cycles": null,
  "reserves": {"cards": [], "credits": []},
  "expect": {"mode": {"mode": "4", "hub": "opus", "route": "no-codex", "subagent": "sonnet", "claude": "rich", "codex": "tight", "override": "-", "card": "-"},
             "action": ["不要派 Codex"]}

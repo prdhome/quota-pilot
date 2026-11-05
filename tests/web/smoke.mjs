@@ -87,6 +87,8 @@ for (const name of names) {
         stabLevel: document.querySelector('#stability .stab-verdict')?.dataset.level,
         tok: { tiles: q('#tokens .wt').length, text: $('tokens').innerText, days: q('#tokens-chart .tok-day').length, bars: q('#tokens-chart rect.tok-c, #tokens-chart rect.tok-x').length,
           models: [...q('#tokens-table tr[data-model]')].map(e => e.dataset.model), note: $('tokens-note').textContent },
+        cyc: { text: $('cycles').innerText, charts: [...q('#cycles .cyc-chart')].map(b => ({ p: b.dataset.p, bars: [...b.querySelectorAll('.cyc-bar')].map(g => g.dataset.tag) })),
+          notes: [...q('#cycles .cyc-note')].map(e => e.textContent) },
         follow: { rows: q('#follow .fol-row[data-d]').length, text: $('follow').innerText },
         qrate: { hidden: $('qrate').hidden, tiles: [...q('#qrate-tiles .wt')].map(e => e.innerText.replace(/\n/g, ' ')), lines: q('#qrate-chart .qr-line').length },
         credit: [...q('#reserves .res-row[data-kind="credit"] .credit-burn')].map(e => ({ level: e.dataset.level, text: e.textContent, label: e.closest('.res-row').querySelector('.tag').textContent })),
@@ -101,7 +103,7 @@ for (const name of names) {
     const usageN = (sc.reserves?.credits || []).filter(c => c.kind === 'usage').length;   // 使用量額度不上時間軸，另列
     const cards = sc.reserves?.cards || [], items = cards.length + (sc.reserves?.credits || []).length - usageN;
     const age = sc.snapshot_age || 0, stale = age > 90 * 60, degraded = age > 6 * 3600;
-    if (sc.work === null || sc.tokens === null) errors.splice(0, errors.length, ...errors.filter(e => !/work\.json|tokens\.json|404 \(File not found\)|status of 404/.test(e)));   // 情境刻意沒有 work.json／tokens.json
+    if (sc.work === null || sc.tokens === null || sc.cycles === null) errors.splice(0, errors.length, ...errors.filter(e => !/work\.json|tokens\.json|cycles\.jsonl|404 \(File not found\)|status of 404/.test(e)));   // 情境刻意沒有 work.json／tokens.json／cycles.jsonl
     check(`${t}：無 JS error／載入失敗`, errors.length === 0 && r.state === 'ok' && !r.statusVisible, errors.join(' | ') || `state=${r.state}`);
     check(`${t}：行動卡在最上方、有標題與 1–3 句建議`, r.actionTop < 200 && r.headline.length > 4 && r.todo.length >= 1 && r.todo.length <= 3, JSON.stringify({ top: r.actionTop, headline: r.headline, todo: r.todo }));
     const miss = (sc.expect.action || []).filter(s => !r.action.includes(s));
@@ -193,6 +195,11 @@ for (const name of names) {
         && ['claude', 'codex'].every((p, i) => !sc[p] || sc[p].week_used == null || /US\$[\d.,]+ ?\/ 1%|算不準/.test(r.qrate.tiles[i])), JSON.stringify(r.qrate));
     }
     if (sc.tokens !== null) check(`${t}：Token 用量 3 格、14 天長條、4 個模型明細、沒有單價的模型有註明`, r.tok.tiles === 3 && r.tok.days === 14 && r.tok.bars >= 18 && r.tok.models.length === 4 && r.tok.note.includes('gpt-9-test') && r.tok.models[r.tok.models.length - 1] === 'gpt-9-test', JSON.stringify(r.tok));
+    if (sc.cycles === null) check(`${t}：沒有 cycles.jsonl → 週期趨勢顯示「還沒接上」與補資料指令`, r.cyc.charts.length === 0 && r.cyc.text.includes('還沒接上') && r.cyc.text.includes('--all-commits'), JSON.stringify(r.cyc));
+    else check(`${t}：週期趨勢 2 張圖（Claude 6 結束＋1 提前、Codex 6 結束），摘要平均／近 4 次／浪費／見底正確`,
+      r.cyc.charts.length === 2 && r.cyc.charts[0].bars.join() === 'waste,ok,empty,ok,early,waste,waste' && r.cyc.charts[1].bars.length === 6
+        && r.cyc.notes[0] === '自然結束 6 次：平均剩 21%（近 4 次 17%）；浪費 3 次、見底 1 次。 提前重置 1 次（不算浪費）。'
+        && r.cyc.notes[1] === '自然結束 6 次：平均剩 21%（近 4 次 23%）；浪費 3 次、見底 1 次。', JSON.stringify(r.cyc));
     if (name === 'reserve-card') check(`${t}：點數 7 天從 US$30 用到 12.5 → 平均每天 US$2.50、比到期日早用完`, r.credit.length === 1 && r.credit[0].label.startsWith('雲端工作階段點數') && r.credit[0].level === 'warn' && /近 7 天平均每天 US\$2\.50，照這速度約 \d+\/\d+ 用完，比到期日早 2[56] 天/.test(r.credit[0].text), JSON.stringify(r.credit));
     if (name === 'reserve-card') check(`${t}：使用量額度另列（沒有到期日）：4 天從 US$40 扣到 31.66 → 扣了 US$8.34、有超出方案上限`,
       r.usage.length === 1 && r.usage[0].head.includes('沒有到期日') && r.usage[0].head.includes('剩 US$31.66') && r.usage[0].level === 'warn'
@@ -201,6 +208,7 @@ for (const name of names) {
     check(`${t}：用卷效果${deadCards ? ` ${deadCards} 筆` : '不顯示（沒有已用或過期的卷）'}`, deadCards ? r.ce?.length === deadCards : r.ce === null, JSON.stringify(r.ce));
     check(`${t}：規則穩定度 3 格＋判讀（warn ⇔ 單日 ≥6 或來回 ≥3）`, r.stab && r.stab.tiles === 3 && r.stabLevel === (r.stab.max >= 6 || r.stab.flaps >= 3 ? 'warn' : 'ok'), JSON.stringify({ stab: r.stab, level: r.stabLevel }));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}-${vp.tag}.png`, fullPage: true });
+    if (SHOTS && name === 'rich') await page.locator('#cycles-card').screenshot({ path: `${SHOTS}/cycles-${vp.tag}.png` });
     await page.close();
   }
 }
@@ -258,7 +266,7 @@ for (const codexPerDay of [5, 1]) {
     const c = t < start + 1.5 * D ? 10 * (t - start) / D : 10 * (t - start - 1.5 * D) / D;
     rows.push({ t, mode: 1, ct: 'rich', xt: 'rich', hub: 'opus', override: '-', card: '-', c5: 10, x5: 10, c7: c, cs: 10, x7: codexPerDay * (t - start) / D, xs: 10 });
   }
-  const d = new Date(now * 1000).toISOString().slice(0, 10), tok = [];
+  const d = new Date((now - D) * 1000).toISOString().slice(0, 10), tok = [];   // 放昨天：今天（UTC）剛開始時當天週用量還不到 minDayPct，折線不會有點
   for (let i = 0; i < 3; i++) tok.push({ d, p: 'claude', m: 'claude-opus-5-5', n: 1, s: 1, in: M, out: M, cr: M, cw5: M, cw1h: M }, { d, p: 'codex', m: 'gpt-6.1-sol', n: 1, s: 1, in: 0, out: M, cr: 0, cw5: 0, cw1h: 0 });
   const hb = rows.map(r => JSON.stringify(r)).join('\n') + '\n', tb = JSON.stringify({ generated_at: now, days: 14, skipped: {}, rows: tok });
   for (const vp of codexPerDay === 5 ? VIEWPORTS : VIEWPORTS.slice(0, 1)) {

@@ -46,6 +46,7 @@ Claude Code ＋ Codex 訂閱額度的動態調度：依兩邊 5h／7d 用量與�
 - 使用量額度有設每月支出上限（`quota-reserve.sh cap`）時，底下多一條進度條「本月已扣 US$x / 上限 US$y」：本月已扣＝本月內餘額下降的總和（加值不算），以月初前最後一筆紀錄當起點，沒有就從本月第一筆起算並註明。照「已扣 ÷ 起點到最後一筆的天數」推估：月底前會撞到上限 → 標黃寫出約幾月幾日；已用完 → 標紅寫出幾號重設；否則綠。假設每月 1 日重設（瀏覽器時區）；snapshot 只留 30 天紀錄。文案在 `ACTION.credit.cap*`。
 - 雲端工作階段點數那一列底下的消耗速度：讀 `quota-reserve.sh credit <provider> <餘額>` 記下的餘額紀錄（`snapshot.json` 的 `credits[].log`，保留 30 天），算近 14 天平均每天花多少；加值（餘額變多）之前的紀錄不算。照這速度會在到期前用完 → 標黃寫出「約幾月幾日用完、比到期日早幾天」；到期時還會剩 ≥ US$1 → 寫「到期時約剩多少（不用就作廢）」。紀錄不到兩筆或相隔不到 1 天 → 提示怎麼記錄；最後一次更新超過 3 天加註。門檻在 `ACTION.credit`。餘額目前沒有自動來源，要手動記：建議每隔幾天看一次餘額就跑一次 `credit`。
 - 「重置卷與點數到期」底下的「用卷效果」（有已用或過期的卷才顯示）：每張已用卷在 used_at 前後 6 小時內找週已用的最大降幅，寫「用時週剩 Y%，回補 X%」並標時機：週剩 ≤10%（`ACTION.cardUseLeft`）＝時機好、離到期 ≤48 小時＝到期前用掉、其餘＝偏早；降幅不到 10 點標「讀數沒下降」（卷可能沒生效或 used_at 記錯），超出 14 天歷史標「無法評估」。附「建議出現後幾小時才用」（從 history 的 `card` 欄找）或「沒有建議就用了」。過期沒用的卷標「浪費一張」，並列出上次用卷後到到期前有幾筆用卷建議。門檻在 `ACTION.cardEffect`。
+- 「週期趨勢（全部紀錄）」：讀 `data/cycles.jsonl`，每邊一張長條圖，一根＝一個週期結束時剩多少週額度（最多最近 26 個）：剩 ≥20% 黃（浪費）、≤3% 紅（見底），判準同「上週期」與 `bin/analyze.py`；提前重置（用卷或供應商重置）畫灰色斜線、不算浪費。底下一句「自然結束 N 次：平均剩 X%（近 4 次 Y%）；浪費 a 次、見底 b 次」，近 4 次跟整體比可以看出門檻調整後有沒有改善。沒有 `cycles.jsonl` 時顯示「還沒接上」與補資料指令。設定在 `ACTION.cycles`。
 - 「建議與實際（近 7 天）」：每天一列，左邊長條＝當天閘門建議的時間占比（可派／不派 Codex／延後，history 每列算 30 分鐘），底下寫 Codex 實際占兩邊輸出 token 的比例；右邊長條＝主控建議 Opus／Sonnet 的時間占比，底下寫 Opus 實際占 Claude（Opus＋Sonnet）輸出 token 的比例。判讀：「不派 Codex」占當天一半以上而 Codex 輸出 ≥20% → 標黃；建議 Sonnet 占一半以上而 Opus 輸出 ≥50% → 標黃；兩邊輸出合計 <2 萬 token 不判讀。上方一句摘要寫出幾天沒照建議、是哪一種。用輸出 token 而不是金額，避免單價高低扭曲；subagent 也用 Sonnet，所以只檢查建議 Sonnet 的日子。5h 覆寫是小時級、token 是日級，不納入。門檻在 `ACTION.follow`。
 - 「工作量（近 7 天）」：讀 `data/work.json`（`bin/work-stats.sh`），四格＝直做通過數、派工 Codex 首次成功數、進行中任務、週回顧待處理（裁決＋memory）。少於 5 件標「樣本少」（`ACTION.work.minN`）；統計超過 90 分鐘沒更新標過期；沒有 `work.json`（orchestrator 沒接上）整塊顯示「還沒接上」，不影響其他區塊。
 - 7d 模式矩陣：格子顏色越深＝過去 7 天停在那一格越久（格內小字是占比）；折線＝最近 24 小時走過的模式，終點（藍點）是現在。
@@ -57,6 +58,7 @@ Claude Code ＋ Codex 訂閱額度的動態調度：依兩邊 5h／7d 用量與�
 
 ## 資料流
 本機 launchd 每 30 分鐘：`bin/publish.sh` → `bin/snapshot.sh`（讀 `~/.claude/state/rate_limits.json`、`codex-quota.sh`、`quota-reserves.json`）→ 推到 `gh-pages` 分支的 `data/`。不耗任何 LLM token；只發佈用量 %、重置時間、模式與卷到期日。
+`history.jsonl` 只留 14 天，所以每輪另外跑 `bin/analyze.py <history> --update-cycles data/cycles.jsonl`，把偵測到的週期結束與非排程 reset 併進 `data/cycles.jsonl`（不刪，一個週期一行，失敗就沿用上一份）。第一次要補舊資料：`git fetch origin gh-pages` 後跑 `python3 bin/analyze.py --gh-pages --all-commits --update-cycles .pages/data/cycles.jsonl`（從 gh-pages 的 git 歷史每隔約 7 天取一版 history 合併後再偵測），下一輪推送就會帶上。
 另外兩份選配資料，產生失敗就沿用上一份：`bin/work-stats.sh` → `data/work.json`（orchestrator 的任務次數）；`bin/token-stats.sh` → `data/tokens.json`（讀 `~/.claude/projects/**/*.jsonl` 與 `~/.codex/sessions/**/rollout-*.jsonl`，只輸出每天 × 每個模型的請求數、session 數與 token 加總，不含路徑、session id 或對話內容）。
 
 ```bash
