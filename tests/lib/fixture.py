@@ -6,6 +6,7 @@
   fixture.py state <情境> <輸出目錄>   寫 state/rate_limits.json、state/quota-reserves.json、state/codex.tsv（Codex 讀不到時為 "-"）
   fixture.py site  <情境> <輸出目錄>   state ＋ 複製 site/ ＋ 用 bin/snapshot.sh 產生 data/snapshot.json ＋ 合成 7 天 data/history.jsonl
                                        ＋ data/work.json（格式同 bin/work-stats.sh；情境的 "work" 欄覆寫預設值，設 null＝不產生）
+                                       ＋ data/cycles.jsonl（兩邊各 6 個週期；情境設 "cycles": null＝不產生）
                                        ＋ data/tokens.json（格式同 bin/token-stats.sh，近 10 天 4 個模型，其中 gpt-9-test 沒有單價；情境設 "tokens": null＝不產生）
   fixture.py list                       列出情境與說明
 
@@ -125,6 +126,12 @@ def build_site(sc, out, now):
                 rows.append({"d": d, "p": p, "m": m, "n": 20 * k, "s": k, "in": 40000 * k, "out": 90000 * k, "cr": 2000000 * k, "cw5": 100000 * k, "cw1h": 0})
         with open(os.path.join(out, "data", "tokens.json"), "w") as fh:
             json.dump({"generated_at": snap["generated_at"], "days": 14, "rows": rows, "skipped": {"claude_lines": 0, "codex_lines": 0, "codex_no_model": 0}}, fh)
+    if sc.get("cycles", {}) is not None:      # 長期週期紀錄：兩邊各 6 個自然結束＋Claude 1 次提前重置；情境設 "cycles": null＝不產生
+        ev = [{"p": p, "kind": "end", "t": now - (k + 1) * WEEK + off, "left": left, "gap_h": 0.5}
+              for p, off, lefts in (("claude", 0, (35, 22, 10, 2, 18, 41)), ("codex", 3600, (50, 30, 12, 0, 25, 8))) for k, left in enumerate(lefts)]
+        ev.append({"p": "claude", "kind": "reopen", "t": now - 2 * WEEK - 3 * 86400, "left": 60})
+        with open(os.path.join(out, "data", "cycles.jsonl"), "w") as fh:
+            fh.writelines(json.dumps(e) + "\n" for e in sorted(ev, key=lambda e: e["t"]))
     work = sc.get("work", {})
     if work is not None:
         with open(os.path.join(out, "data", "work.json"), "w") as fh:

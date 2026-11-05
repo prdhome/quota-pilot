@@ -4,6 +4,11 @@
   bin/analyze.py <history.jsonl>          讀本機檔案
   bin/analyze.py --gh-pages               讀本地 git 物件 origin/gh-pages:data/history.jsonl（不 fetch；要最新先自己 git fetch origin gh-pages）
   選項：-o <路徑> 報告寫到該檔（預設 stdout）；--json 改輸出統計 JSON（測試用）；--ref <git ref> 搭配 --gh-pages 換分支
+  bin/analyze.py <history.jsonl> --update-cycles <cycles.jsonl>
+                                          把 history 裡偵測到的週期結束與非排程 reset 併進 cycles.jsonl（長期保留，給儀表板「週期趨勢」）；
+                                          同一 provider、同一種、時間差 ≤ 2 小時視為同一筆（後算的覆蓋）。不輸出報告。publish.sh 每輪呼叫。
+  bin/analyze.py --gh-pages --all-commits --update-cycles <cycles.jsonl>
+                                          補舊資料：從 --ref 的 git 歷史每隔約 7 天取一版 history.jsonl，合併後再偵測（history 只留 14 天，這樣取不會漏）。
 
 history 每列：t, mode, route, hub, c5, c7, cs, x5, x7, xs（c=Claude、x=Codex；5/7=5h/7d 已用%；s=週盈餘＝週期已過% − 週已用%），
 2026-10-15 起另有 override、card（舊列沒有，相關統計略過舊列）。缺必要欄位或格式壞掉的單列略過並計數。
@@ -123,6 +128,56 @@ def cycles(rows, p):
         t, u, e = pts[-1]
         cur = {"elapsed": round(e, 1), "used": u, "projected_left": round(100 - u / e * 100, 1) if e >= 10 else None}
     return {"ends": ends, "unscheduled": unsched, "current": cur}
+
+
+CYCLE_KIND = {"週期重開": "reopen", "只歸零用量": "zero"}
+
+
+def cycle_events(rows):
+    """cycles() 的結果攤平成 cycles.jsonl 的列：end（自然結束：left＝結束時剩 %、gap_h＝最後讀數離結束幾小時）、reopen／zero（非排程 reset：left＝當時剩 %）。"""
+    out = []
+    for p in PROV:
+        c = cycles(rows, p)
+        out += [{"p": p, "kind": "end", "t": e["end_t"], "left": e["left"], "gap_h": e["last_gap_h"]} for e in c["ends"]]
+        out += [{"p": p, "kind": CYCLE_KIND[u["kind"]], "t": u["t"], "left": round(100 - u["used_before"], 1)} for u in c["unscheduled"]]
+    return out
+
+
+def merge_cycles(old, new):
+    out = list(old)
+    for e in new:
+        i = next((i for i, o in enumerate(out) if o.get("p") == e["p"] and o.get("kind") == e["kind"] and abs(o.get("t", 0) - e["t"]) <= 2 * HOUR), None)
+        if i is None: out.append(e)
+        else: out[i] = e
+    return sorted(out, key=lambda e: (e.get("t", 0), e.get("p", "")))
+
+
+def git_history_texts(ref):
+    """--all-commits：ref 的 git 歷史裡每隔約 7 天取一版 data/history.jsonl（含最新一版）。"""
+    log = subprocess.run(["git", "-C", ROOT, "log", "--format=%H %ct", ref, "--", "data/history.jsonl"], capture_output=True, text=True)
+    if log.returncode: sys.exit(f"讀不到 {ref} 的 git 歷史（{log.stderr.strip()}）；先跑 git fetch origin gh-pages")
+    texts, last = [], None
+    for line in log.stdout.split("\n"):                 # 由新到舊
+        if not line.strip(): continue
+        h, ct = line.split(); ct = int(ct)
+        if last is None or last - ct >= WEEK:
+            r = subprocess.run(["git", "-C", ROOT, "show", f"{h}:data/history.jsonl"], capture_output=True, text=True)
+            if not r.returncode: texts.append(r.stdout); last = ct
+    return texts
+
+
+def update_cycles(texts, path):
+    rows = {}
+    for text in texts:
+        for r in parse(text)[0]: rows[r["t"]] = r
+    rows = [rows[t] for t in sorted(rows)]
+    try: old = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+    except FileNotFoundError: old = []
+    merged = merge_cycles(old, cycle_events(rows))
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh: fh.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in merged)
+    os.replace(tmp, path)
+    return len(merged) - len(old)
 
 
 def boundary(rows, w, th):
@@ -339,8 +394,15 @@ def main():
     ap.add_argument("--ref", default="origin/gh-pages")
     ap.add_argument("-o", "--output")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--update-cycles", metavar="CYCLES_JSONL")
+    ap.add_argument("--all-commits", action="store_true")
     a = ap.parse_args()
     if bool(a.path) == a.gh_pages: ap.error("給 history.jsonl 路徑，或用 --gh-pages（二擇一）")
+    if a.all_commits and not (a.gh_pages and a.update_cycles): ap.error("--all-commits 要搭配 --gh-pages 與 --update-cycles")
+    if a.update_cycles:
+        n = update_cycles(git_history_texts(a.ref) if a.all_commits else [read_source(a)[0]], a.update_cycles)
+        print(f"cycles：新增 {n} 筆 → {a.update_cycles}", file=sys.stderr)
+        return
     text, source = read_source(a)
     st = analyze(text, source)
     out = json.dumps(st, ensure_ascii=False, indent=1) + "\n" if a.json else report(st)

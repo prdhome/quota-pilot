@@ -91,4 +91,24 @@ else
   echo "  ⏭  沒有 origin/gh-pages（CI 淺層 checkout），跳過 --gh-pages 實讀"
 fi
 
+echo "週期長期保留（--update-cycles）"
+C="$T/cycles.jsonl"; cj() { python3 -I -c "import json,sys; e=[json.loads(l) for l in open(sys.argv[1])]; print($1)" "$C"; }
+python3 -I "$A" "$H/stable-rich.jsonl" --update-cycles "$C" 2>/dev/null
+eq "穩定充裕：兩邊各一筆自然結束、剩 40.2%、最後讀數離結束 0.5 小時" "claude end 40.2 0.5 codex end 40.2 0.5" "$(cj '" ".join(" ".join(str(x[k]) for k in ("p", "kind", "left", "gap_h")) for x in sorted(e, key=lambda x: x["p"]))')"
+python3 -I "$A" "$H/stable-rich.jsonl" --update-cycles "$C" 2>/dev/null
+eq "同一份歷史再跑一次不重複新增" 2 "$(wc -l < "$C" | tr -d ' ')"
+python3 -I "$A" "$H/codex-unscheduled.jsonl" --update-cycles "$C" 2>/dev/null
+eq "非排程 reset：週期重開＋只歸零用量都記下（當時剩 %），舊的兩筆保留" "5 reopen:45.3 zero:54.0" "$(cj 'len(e), " ".join(x["kind"] + ":" + str(x["left"]) for x in e if x["kind"] != "end")' | tr -d '(),')"
+eq "依時間排序" "True" "$(cj 'all(a["t"] <= b["t"] for a, b in zip(e, e[1:]))')"
+# --all-commits：暫存 repo 裡 3 個 commit 的 history.jsonl（各相隔 8 天、各只含一段歷史）→ 合併後一次偵測，每段的週期結束都要在
+G="$T/repo"; mkdir -p "$G/bin" "$G/data"; cp "$A" "$G/bin/"; git -C "$G" init -q -b gh-pages
+for i in 0 1 2; do
+  python3 -I -c "import json,sys; rows=[json.loads(l) for l in open(sys.argv[1])]; n=len(rows); k=int(sys.argv[2]); open(sys.argv[3],'w').writelines(json.dumps(r)+'\n' for r in rows[k*n//3:(k+1)*n//3+1])" "$H/claude-overrun.jsonl" $i "$G/data/history.jsonl"
+  git -C "$G" add -A && GIT_COMMITTER_DATE="@$((1790000000 + i * 8 * 86400)) +0000" git -C "$G" -c user.name=t -c user.email=t@t commit -qm "data $i"
+done
+python3 -I "$G/bin/analyze.py" --gh-pages --ref gh-pages --all-commits --update-cycles "$T/all.jsonl" 2>/dev/null
+python3 -I "$A" "$H/claude-overrun.jsonl" --update-cycles "$T/full.jsonl" 2>/dev/null
+eq "--all-commits：從 3 版 git 歷史拼回的週期＝完整歷史偵測到的週期" "$(cat "$T/full.jsonl")" "$(cat "$T/all.jsonl")"
+eq "--all-commits 沒搭 --gh-pages／--update-cycles → 參數錯誤" "2" "$(python3 -I "$A" "$H/short.jsonl" --all-commits >/dev/null 2>&1; echo $?)"
+
 echo "pass=$pass fail=$fail"; [[ $fail -eq 0 ]]

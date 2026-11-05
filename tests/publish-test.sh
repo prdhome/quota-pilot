@@ -5,7 +5,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 fail=0
 setup() {  # $1=dir $2=snapshot 輸出
-  local d="$1"; mkdir -p "$d/bin" "$d/site"; cp "$ROOT/bin/publish.sh" "$d/bin/"; echo '<html>' > "$d/site/index.html"
+  local d="$1"; mkdir -p "$d/bin" "$d/site"; cp "$ROOT/bin/publish.sh" "$ROOT/bin/analyze.py" "$d/bin/"; echo '<html>' > "$d/site/index.html"
   printf '#!/usr/bin/env bash\necho %q\n' "$2" > "$d/bin/snapshot.sh"; printf '#!/usr/bin/env bash\nexit 1\n' > "$d/bin/work-stats.sh"
   chmod +x "$d/bin/"*.sh; git init -q "$d"
   git init -q --bare "$d/remote.git"; git init -q -b gh-pages "$d/.pages"
@@ -17,6 +17,9 @@ pushed() { git -C "$1/remote.git" rev-list --count gh-pages; }
 good='{"generated_at": 9999999999, "mode": {"mode": "5"}}'
 setup "$T/ok" "$good"; "$T/ok/bin/publish.sh" >/dev/null 2>&1; rc=$?
 [[ $rc == 0 && $(pushed "$T/ok") == 2 ]] && echo "  ✅ 正常：exit 0 且推送" || { echo "  ❌ 正常 rc=$rc pushed=$(pushed "$T/ok")"; fail=1; }
+git -C "$T/ok/remote.git" cat-file -e gh-pages:data/cycles.jsonl 2>/dev/null && echo "  ✅ 正常：推送內容含 data/cycles.jsonl" || { echo "  ❌ 推送內容沒有 data/cycles.jsonl"; fail=1; }
+setup "$T/nocyc" "$good"; rm "$T/nocyc/bin/analyze.py"; "$T/nocyc/bin/publish.sh" >/dev/null 2>&1; rc=$?
+[[ $rc == 0 && $(pushed "$T/nocyc") == 2 ]] && echo "  ✅ cycles 更新失敗（沒有 analyze.py）：照樣推送" || { echo "  ❌ cycles 失敗 rc=$rc pushed=$(pushed "$T/nocyc")"; fail=1; }
 setup "$T/bad" '{"generated_at": 1}'; "$T/bad/bin/publish.sh" >/dev/null 2>&1; rc=$?
 [[ $rc != 0 && $(pushed "$T/bad") == 1 ]] && echo "  ✅ Python 失敗：exit 非 0 且未推送" || { echo "  ❌ Python 失敗 rc=$rc pushed=$(pushed "$T/bad")"; fail=1; }
 exit $fail
