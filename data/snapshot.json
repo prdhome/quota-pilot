@@ -1,5 +1,5 @@
 {
- "generated_at": 1793958817,
+ "generated_at": 1793960625,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -11,56 +11,56 @@
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 99% used 34% surplus 65 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 100%; 5h reset since reading",
-  "codex:  rich — 5h left 90% week left 80% surplus 5",
+  "claude: rich — week elapsed 99% used 39% surplus 60 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 44%",
+  "codex:  rich — 5h left 48% week left 73% surplus -2",
   "matrix: (rich,rich) → mode 1; override weekend-claude → route direct",
-  "note:   codex ok → rich（有 2 張卷）"
+  "note:   codex lean → rich（有 2 張卷）"
  ],
  "detail": {
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "100",
-  "claude_left7": "66",
-  "claude_surplus": "65",
+  "claude_left5": "44",
+  "claude_left7": "61",
+  "claude_surplus": "60",
   "claude_reset_h": "2",
-  "claude_proj7": "34",
-  "claude_runway_h": "322",
+  "claude_proj7": "39",
+  "claude_runway_h": "260",
   "claude_cards": "0",
-  "codex_raw": "ok",
+  "codex_raw": "lean",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "90",
-  "codex_left7": "80",
-  "codex_surplus": "5",
-  "codex_reset_h": "127",
-  "codex_proj7": "81",
-  "codex_runway_h": "166",
+  "codex_left5": "48",
+  "codex_left7": "73",
+  "codex_surplus": "-2",
+  "codex_reset_h": "126",
+  "codex_proj7": "108",
+  "codex_runway_h": "113",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 0.0,
-   "resets_at": 1793939400.0
+   "used": 56.0,
+   "resets_at": 1793976600.0
   },
   "week": {
-   "used": 34.0,
+   "used": 39.0,
    "resets_at": 1793966400.0
   },
-  "updated_at": 1793939340,
-  "surplus": 64.7
+  "updated_at": 1793960588,
+  "surplus": 60.0
  },
  "codex": {
   "five": {
-   "used": 10.0,
+   "used": 52.0,
    "resets_at": 1793962925.0
   },
   "week": {
-   "used": 20.0,
+   "used": 27.0,
    "resets_at": 1794414637.0
   },
-  "surplus": 4.6
+  "surplus": -2.1
  },
  "cards": [
   {
