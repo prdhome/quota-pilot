@@ -1,60 +1,66 @@
 {
- "generated_at": 1794126937,
+ "generated_at": 1794128745,
  "mode": {
-  "mode": "5",
+  "mode": "1",
   "hub": "opus",
   "route": "delegate",
   "subagent": "sonnet",
-  "claude": "unknown",
+  "claude": "rich",
   "codex": "rich",
   "override": "-",
   "card": "-"
  },
  "explain": [
-  "claude: unknown — stale 11.4h → default opus",
-  "codex:  rich — 5h left 94% week left 54% surplus 6",
-  "matrix: (unknown,rich) → mode 5; override - → route delegate",
+  "claude: rich — week elapsed 27% used 12% surplus 15 (tight ≤ -15 or week left < 15; rich ≥ 8); 5h left 96%",
+  "codex:  rich — 5h left 94% week left 54% surplus 7",
+  "matrix: (rich,rich) → mode 1; override - → route delegate",
   "note:   codex ok → rich（有 2 張卷）"
  ],
  "detail": {
-  "claude_raw": "unknown",
-  "claude_policy": "unknown",
-  "claude_fresh": "stale",
+  "claude_raw": "rich",
+  "claude_policy": "rich",
+  "claude_fresh": "fresh",
+  "claude_left5": "96",
+  "claude_left7": "88",
+  "claude_surplus": "15",
+  "claude_reset_h": "123",
+  "claude_proj7": "45",
+  "claude_runway_h": "331",
   "claude_cards": "0",
   "codex_raw": "ok",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
   "codex_left5": "94",
   "codex_left7": "54",
-  "codex_surplus": "6",
-  "codex_reset_h": "80",
-  "codex_proj7": "88",
-  "codex_runway_h": "103",
+  "codex_surplus": "7",
+  "codex_reset_h": "79",
+  "codex_proj7": "87",
+  "codex_runway_h": "104",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 0.0,
-   "resets_at": 1794085800.0
+   "used": 4.0,
+   "resets_at": 1794145200.0
   },
   "week": {
-   "used": 9.0,
+   "used": 12.0,
    "resets_at": 1794571200.0
   },
-  "updated_at": 1794085745,
-  "surplus": 17.5
+  "updated_at": 1794128706,
+  "surplus": 14.8
  },
  "codex": {
   "five": {
    "used": 6.0,
-   "resets_at": 1794135790.0
+   "resets_at": 1794135789.0
   },
   "week": {
    "used": 46.0,
    "resets_at": 1794414637.0
   },
-  "surplus": 6.4
+  "surplus": 6.7
  },
  "cards": [
   {
