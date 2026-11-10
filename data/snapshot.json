@@ -1,5 +1,5 @@
 {
- "generated_at": 1794322195,
+ "generated_at": 1794324004,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -11,45 +11,44 @@
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 59% used 30% surplus 29 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 88%",
+  "claude: rich — week elapsed 59% used 31% surplus 28 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 78%",
   "codex:  rich — 5h left 94% week left 30% surplus 15",
-  "matrix: (rich,rich) → mode 1; override - → route delegate",
-  "note:   codex ok → rich（有 2 張卷）"
+  "matrix: (rich,rich) → mode 1; override - → route delegate"
  ],
  "detail": {
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "88",
-  "claude_left7": "70",
-  "claude_surplus": "29",
+  "claude_left5": "78",
+  "claude_left7": "69",
+  "claude_surplus": "28",
   "claude_reset_h": "69",
-  "claude_proj7": "51",
-  "claude_runway_h": "231",
+  "claude_proj7": "52",
+  "claude_runway_h": "221",
   "claude_cards": "1",
-  "codex_raw": "ok",
+  "codex_raw": "rich",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
   "codex_left5": "94",
   "codex_left7": "30",
   "codex_surplus": "15",
-  "codex_reset_h": "26",
-  "codex_proj7": "83",
+  "codex_reset_h": "25",
+  "codex_proj7": "82",
   "codex_runway_h": "61",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 12.0,
+   "used": 22.0,
    "resets_at": 1794337200.0
   },
   "week": {
-   "used": 30.0,
+   "used": 31.0,
    "resets_at": 1794571200.0
   },
-  "updated_at": 1794322191,
-  "surplus": 28.8
+  "updated_at": 1794323991,
+  "surplus": 28.1
  },
  "codex": {
   "five": {
@@ -60,7 +59,7 @@
    "used": 70.0,
    "resets_at": 1794414637.0
   },
-  "surplus": 14.7
+  "surplus": 15.0
  },
  "cards": [
   {
@@ -100,32 +99,6 @@
   }
  ],
  "credits": [
-  {
-   "provider": "claude-cloud",
-   "kind": "session",
-   "usd_left": 11.0,
-   "usd_total": 100.0,
-   "expires": "2026-11-05T15:59:00+08:00",
-   "monthly_cap": null,
-   "log": [
-    [
-     1793374074,
-     31.66
-    ],
-    [
-     1793375522,
-     44.0
-    ],
-    [
-     1793378515,
-     40.0
-    ],
-    [
-     1793863639,
-     11.0
-    ]
-   ]
-  },
   {
    "provider": "claude-usage",
    "kind": "usage",
