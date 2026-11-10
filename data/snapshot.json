@@ -1,5 +1,5 @@
 {
- "generated_at": 1794320386,
+ "generated_at": 1794322195,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -11,8 +11,8 @@
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 59% used 28% surplus 31 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 97%",
-  "codex:  rich — 5h left 95% week left 30% surplus 14",
+  "claude: rich — week elapsed 59% used 30% surplus 29 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 88%",
+  "codex:  rich — 5h left 94% week left 30% surplus 15",
   "matrix: (rich,rich) → mode 1; override - → route delegate",
   "note:   codex ok → rich（有 2 張卷）"
  ],
@@ -20,19 +20,19 @@
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "97",
-  "claude_left7": "72",
-  "claude_surplus": "30",
-  "claude_reset_h": "70",
-  "claude_proj7": "48",
-  "claude_runway_h": "253",
-  "claude_cards": "0",
+  "claude_left5": "88",
+  "claude_left7": "70",
+  "claude_surplus": "29",
+  "claude_reset_h": "69",
+  "claude_proj7": "51",
+  "claude_runway_h": "231",
+  "claude_cards": "1",
   "codex_raw": "ok",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "95",
+  "codex_left5": "94",
   "codex_left7": "30",
-  "codex_surplus": "14",
+  "codex_surplus": "15",
   "codex_reset_h": "26",
   "codex_proj7": "83",
   "codex_runway_h": "61",
@@ -41,26 +41,26 @@
  "effort": null,
  "claude": {
   "five": {
-   "used": 3.0,
+   "used": 12.0,
    "resets_at": 1794337200.0
   },
   "week": {
-   "used": 28.0,
+   "used": 30.0,
    "resets_at": 1794571200.0
   },
-  "updated_at": 1794320349,
-  "surplus": 30.5
+  "updated_at": 1794322191,
+  "surplus": 28.8
  },
  "codex": {
   "five": {
-   "used": 5.0,
+   "used": 6.0,
    "resets_at": 1794329872.0
   },
   "week": {
    "used": 70.0,
    "resets_at": 1794414637.0
   },
-  "surplus": 14.4
+  "surplus": 14.7
  },
  "cards": [
   {
@@ -91,6 +91,11 @@
   {
    "provider": "codex",
    "expires": "2026-12-02T05:43:00+08:00",
+   "used_at": null
+  },
+  {
+   "provider": "claude",
+   "expires": "2026-11-17T15:59:00+08:00",
    "used_at": null
   }
  ],
@@ -124,7 +129,7 @@
   {
    "provider": "claude-usage",
    "kind": "usage",
-   "usd_left": 31.66,
+   "usd_left": 31.22,
    "usd_total": 31.66,
    "expires": null,
    "monthly_cap": 10.0,
@@ -136,6 +141,10 @@
     [
      1793863639,
      31.66
+    ],
+    [
+     1794322191,
+     31.22
     ]
    ]
   }
