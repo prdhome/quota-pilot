@@ -1,5 +1,5 @@
 {
- "generated_at": 1794325813,
+ "generated_at": 1794327621,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -7,48 +7,48 @@
   "subagent": "sonnet",
   "claude": "rich",
   "codex": "rich",
-  "override": "-",
+  "override": "claude5h",
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 59% used 39% surplus 20 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 15%",
-  "codex:  rich — 5h left 94% week left 30% surplus 15",
-  "matrix: (rich,rich) → mode 1; override - → route delegate"
+  "claude: rich — week elapsed 60% used 41% surplus 19 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 0%",
+  "codex:  rich — 5h left 94% week left 30% surplus 16",
+  "matrix: (rich,rich) → mode 1; override claude5h → route delegate"
  ],
  "detail": {
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "15",
-  "claude_left7": "61",
-  "claude_surplus": "20",
+  "claude_left5": "0",
+  "claude_left7": "59",
+  "claude_surplus": "19",
   "claude_reset_h": "68",
-  "claude_proj7": "66",
-  "claude_runway_h": "156",
+  "claude_proj7": "69",
+  "claude_runway_h": "144",
   "claude_cards": "1",
   "codex_raw": "rich",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
   "codex_left5": "94",
   "codex_left7": "30",
-  "codex_surplus": "15",
-  "codex_reset_h": "25",
+  "codex_surplus": "16",
+  "codex_reset_h": "24",
   "codex_proj7": "82",
-  "codex_runway_h": "61",
+  "codex_runway_h": "62",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 85.0,
+   "used": 100.0,
    "resets_at": 1794337200.0
   },
   "week": {
-   "used": 39.0,
+   "used": 41.0,
    "resets_at": 1794571200.0
   },
-  "updated_at": 1794325806,
-  "surplus": 20.4
+  "updated_at": 1794327617,
+  "surplus": 18.7
  },
  "codex": {
   "five": {
@@ -59,7 +59,7 @@
    "used": 70.0,
    "resets_at": 1794414637.0
   },
-  "surplus": 15.3
+  "surplus": 15.6
  },
  "cards": [
   {
