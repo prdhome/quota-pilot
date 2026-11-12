@@ -1,5 +1,5 @@
 {
- "generated_at": 1794452296,
+ "generated_at": 1794454104,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -11,7 +11,7 @@
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 80% used 51% surplus 29 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 76%",
+  "claude: rich — week elapsed 81% used 51% surplus 30 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 76%",
   "codex:  rich — 5h left 68% week left 94% surplus -0",
   "matrix: (rich,rich) → mode 1; override - → route delegate",
   "note:   codex lean → rich（有 2 張卷）"
@@ -22,7 +22,7 @@
   "claude_fresh": "fresh",
   "claude_left5": "76",
   "claude_left7": "49",
-  "claude_surplus": "29",
+  "claude_surplus": "30",
   "claude_reset_h": "33",
   "claude_proj7": "63",
   "claude_runway_h": "130",
@@ -33,9 +33,9 @@
   "codex_left5": "68",
   "codex_left7": "94",
   "codex_surplus": "-0",
-  "codex_reset_h": "159",
-  "codex_proj7": "108",
-  "codex_runway_h": "147",
+  "codex_reset_h": "158",
+  "codex_proj7": "102",
+  "codex_runway_h": "154",
   "codex_cards": "2"
  },
  "effort": null,
@@ -48,8 +48,8 @@
    "used": 51.0,
    "resets_at": 1794571200.0
   },
-  "updated_at": 1794452270,
-  "surplus": 29.3
+  "updated_at": 1794454070,
+  "surplus": 29.6
  },
  "codex": {
   "five": {
@@ -60,7 +60,7 @@
    "used": 6.0,
    "resets_at": 1795023419.0
   },
-  "surplus": -0.4
+  "surplus": -0.1
  },
  "cards": [
   {
