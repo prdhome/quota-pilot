@@ -1,55 +1,55 @@
 {
- "generated_at": 1794553558,
+ "generated_at": 1794555366,
  "mode": {
   "mode": "1",
   "hub": "opus",
-  "route": "direct",
-  "subagent": "opus",
+  "route": "delegate",
+  "subagent": "sonnet",
   "claude": "rich",
   "codex": "rich",
-  "override": "weekend-claude",
+  "override": "claude5h",
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 97% used 66% surplus 31 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 68%",
-  "codex:  rich — 5h left 86% week left 83% surplus 5",
-  "matrix: (rich,rich) → mode 1; override weekend-claude → route direct",
+  "claude: rich — week elapsed 97% used 74% surplus 23 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 9%",
+  "codex:  rich — 5h left 86% week left 83% surplus 6",
+  "matrix: (rich,rich) → mode 1; override claude5h → route delegate",
   "note:   codex ok → rich（有 2 張卷）"
  ],
  "detail": {
   "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "68",
-  "claude_left7": "34",
-  "claude_surplus": "31",
-  "claude_reset_h": "5",
-  "claude_proj7": "68",
-  "claude_runway_h": "84",
+  "claude_left5": "9",
+  "claude_left7": "26",
+  "claude_surplus": "23",
+  "claude_reset_h": "4",
+  "claude_proj7": "76",
+  "claude_runway_h": "57",
   "claude_cards": "2",
   "codex_raw": "ok",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
   "codex_left5": "86",
   "codex_left7": "83",
-  "codex_surplus": "5",
-  "codex_reset_h": "131",
-  "codex_proj7": "76",
-  "codex_runway_h": "183",
+  "codex_surplus": "6",
+  "codex_reset_h": "130",
+  "codex_proj7": "75",
+  "codex_runway_h": "185",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 32.0,
+   "used": 91.0,
    "resets_at": 1794562800.0
   },
   "week": {
-   "used": 66.0,
+   "used": 74.0,
    "resets_at": 1794571200.0
   },
-  "updated_at": 1794553527,
-  "surplus": 31.1
+  "updated_at": 1794555301,
+  "surplus": 23.4
  },
  "codex": {
   "five": {
@@ -60,7 +60,7 @@
    "used": 17.0,
    "resets_at": 1795023419.0
   },
-  "surplus": 5.3
+  "surplus": 5.6
  },
  "cards": [
   {
