@@ -1,59 +1,65 @@
 {
- "generated_at": 1794792215,
+ "generated_at": 1794794023,
  "mode": {
-  "mode": "5",
+  "mode": "1",
   "hub": "opus",
   "route": "delegate",
   "subagent": "sonnet",
-  "claude": "unknown",
+  "claude": "rich",
   "codex": "rich",
   "override": "-",
   "card": "-"
  },
  "explain": [
-  "claude: unknown — stale 14.6h → default opus",
-  "codex:  rich — 5h left 67% week left 65% surplus 27",
-  "matrix: (unknown,rich) → mode 5; override - → route delegate"
+  "claude: rich — week elapsed 37% used 18% surplus 19 (tight ≤ -15 or week left < 15; rich ≥ 11); 5h left 81%",
+  "codex:  rich — 5h left 48% week left 62% surplus 24",
+  "matrix: (rich,rich) → mode 1; override - → route delegate"
  ],
  "detail": {
-  "claude_raw": "unknown",
-  "claude_policy": "unknown",
-  "claude_fresh": "stale",
+  "claude_raw": "rich",
+  "claude_policy": "rich",
+  "claude_fresh": "fresh",
+  "claude_left5": "81",
+  "claude_left7": "82",
+  "claude_surplus": "19",
+  "claude_reset_h": "106",
+  "claude_proj7": "49",
+  "claude_runway_h": "282",
   "claude_cards": "2",
   "codex_raw": "rich",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "67",
-  "codex_left7": "65",
-  "codex_surplus": "27",
+  "codex_left5": "48",
+  "codex_left7": "62",
+  "codex_surplus": "24",
   "codex_reset_h": "64",
-  "codex_proj7": "57",
-  "codex_runway_h": "193",
+  "codex_proj7": "61",
+  "codex_runway_h": "170",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 0.0,
-   "resets_at": 1794739800.0
+   "used": 19.0,
+   "resets_at": 1794805200.0
   },
   "week": {
-   "used": 16.0,
+   "used": 18.0,
    "resets_at": 1795176000.0
   },
-  "updated_at": 1794739763,
-  "surplus": 20.5
+  "updated_at": 1794794004,
+  "surplus": 18.8
  },
  "codex": {
   "five": {
-   "used": 33.0,
+   "used": 52.0,
    "resets_at": 1794806646.0
   },
   "week": {
-   "used": 35.0,
+   "used": 38.0,
    "resets_at": 1795023419.0
   },
-  "surplus": 26.8
+  "surplus": 24.1
  },
  "cards": [
   {
