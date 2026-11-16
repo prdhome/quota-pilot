@@ -1,5 +1,5 @@
 {
- "generated_at": 1794848257,
+ "generated_at": 1794850064,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -7,61 +7,60 @@
   "subagent": "sonnet",
   "claude": "rich",
   "codex": "rich",
-  "override": "claude5h",
+  "override": "-",
   "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 46% used 38% surplus 8 (tight ≤ -15 or week left < 15; rich ≥ 14); 5h left 4%",
-  "codex:  rich — 5h left 92% week left 59% surplus 30",
-  "matrix: (rich,rich) → mode 1; override claude5h → route delegate",
-  "note:   Claude 5h 1 小時內 reset，可等",
+  "claude: rich — week elapsed 46% used 38% surplus 8 (tight ≤ -15 or week left < 15; rich ≥ 14); 5h left 100%; 5h reset since reading",
+  "codex:  rich — 5h left 100% week left 59% surplus 30",
+  "matrix: (rich,rich) → mode 1; override - → route delegate",
   "note:   claude ok → rich（有 2 張卷）"
  ],
  "detail": {
   "claude_raw": "ok",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "4",
+  "claude_left5": "100",
   "claude_left7": "62",
   "claude_surplus": "8",
   "claude_reset_h": "91",
-  "claude_proj7": "83",
+  "claude_proj7": "82",
   "claude_runway_h": "126",
   "claude_cards": "2",
   "codex_raw": "rich",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "92",
+  "codex_left5": "100",
   "codex_left7": "59",
   "codex_surplus": "30",
-  "codex_reset_h": "49",
-  "codex_proj7": "58",
+  "codex_reset_h": "48",
+  "codex_proj7": "57",
   "codex_runway_h": "172",
   "codex_cards": "2"
  },
  "effort": "low",
  "claude": {
   "five": {
-   "used": 96.0,
+   "used": 0.0,
    "resets_at": 1794849600.0
   },
   "week": {
    "used": 38.0,
    "resets_at": 1795176000.0
   },
-  "updated_at": 1794848243,
-  "surplus": 7.8
+  "updated_at": 1794849564,
+  "surplus": 8.1
  },
  "codex": {
   "five": {
-   "used": 8.0,
-   "resets_at": 1794849231.0
+   "used": 0.0,
+   "resets_at": 1794867926.0
   },
   "week": {
    "used": 41.0,
    "resets_at": 1795023419.0
   },
-  "surplus": 30.0
+  "surplus": 30.3
  },
  "cards": [
   {
