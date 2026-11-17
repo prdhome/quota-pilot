@@ -3,7 +3,7 @@
 #   list                         列出未用、未過期的卷與點數
 #   use <claude|codex>           標記最早到期的可用卷為已用（記 used_at 與當下週 reset，日後比對「用卷是否重開 7 天週期」）
 #   add <claude|codex> <ISO8601> 新增一張卷（例 2026-11-14T02:00:00+08:00）
-#   check                        比對已用卷的 reset 前後：週 reset 時間有變 → 用卷會重開週期
+#   check                        比對已用卷的 reset 前後：週 reset 時間有變 → 用卷會重開週期；用卷當時的週期已自然結束 → 無法判斷（2026-11-17）
 #   credit <provider> <USD>      更新點數餘額（該 provider 最早到期、未過期的那筆；沒有到期日的排最後），並在該筆的 log 追加一筆 {t, usd_left}；
 #                                儀表板用 log 算消耗速度與用完日期。餘額變多（加值）時 usd_total 跟著調高。log 只留最近 100 筆。
 #   add-credit <provider> <session|usage> <USD> [<ISO8601 到期>]
@@ -67,6 +67,7 @@ elif cmd == "check":
         if c.get("used_at") and c.get("reset7_before"):
             r = week_reset(c["provider"])
             if r is None: print(f"{c['provider']}：讀不到目前週 reset"); continue
+            if c["reset7_before"] <= now: print(f"{c['provider']} 卷（用於 {c['used_at']}）：已過用卷當時的週期，無法判斷是否重開"); continue
             same = abs(r - c["reset7_before"]) < 600
             print(f"{c['provider']} 卷（用於 {c['used_at']}）：週 reset {'未變 → 只歸零用量、不重開週期' if same else '已改變 → 用卷會重開 7 天週期'}")
 elif cmd == "credit":
