@@ -1,5 +1,5 @@
 {
- "generated_at": 1794897061,
+ "generated_at": 1794898868,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -8,59 +8,58 @@
   "claude": "rich",
   "codex": "rich",
   "override": "-",
-  "card": "claude:expiring"
+  "card": "-"
  },
  "explain": [
-  "claude: rich — week elapsed 54% used 58% surplus -4 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 41%",
-  "codex:  rich — 5h left 70% week left 48% surplus 27",
-  "matrix: (rich,rich) → mode 1; override - → route delegate",
-  "note:   claude ok → rich（有 2 張卷）"
+  "claude: rich — week elapsed 54% used 19% surplus 35 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 99%",
+  "codex:  rich — 5h left 68% week left 48% surplus 27",
+  "matrix: (rich,rich) → mode 1; override - → route delegate"
  ],
  "detail": {
-  "claude_raw": "ok",
+  "claude_raw": "rich",
   "claude_policy": "rich",
   "claude_fresh": "fresh",
-  "claude_left5": "41",
-  "claude_left7": "42",
-  "claude_surplus": "-4",
+  "claude_left5": "99",
+  "claude_left7": "81",
+  "claude_surplus": "35",
   "claude_reset_h": "77",
-  "claude_proj7": "108",
-  "claude_runway_h": "66",
-  "claude_cards": "2",
+  "claude_proj7": "-",
+  "claude_runway_h": "-",
+  "claude_cards": "1",
   "codex_raw": "rich",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "70",
+  "codex_left5": "68",
   "codex_left7": "48",
   "codex_surplus": "27",
   "codex_reset_h": "35",
-  "codex_proj7": "66",
+  "codex_proj7": "65",
   "codex_runway_h": "123",
   "codex_cards": "2"
  },
- "effort": "low",
+ "effort": null,
  "claude": {
   "five": {
-   "used": 59.0,
-   "resets_at": 1794908400.0
+   "used": 1.0,
+   "resets_at": 1794916200.0
   },
   "week": {
-   "used": 58.0,
+   "used": 19.0,
    "resets_at": 1795176000.0
   },
-  "updated_at": 1794895775,
-  "surplus": -4.1
+  "updated_at": 1794898812,
+  "surplus": 35.2
  },
  "codex": {
   "five": {
-   "used": 30.0,
-   "resets_at": 1794910575.0
+   "used": 32.0,
+   "resets_at": 1794910574.0
   },
   "week": {
    "used": 52.0,
    "resets_at": 1795023419.0
   },
-  "surplus": 27.1
+  "surplus": 27.4
  },
  "cards": [
   {
@@ -96,7 +95,7 @@
   {
    "provider": "claude",
    "expires": "2026-11-17T15:59:00+08:00",
-   "used_at": null
+   "used_at": "2026-11-17T14:52:15+08:00"
   },
   {
    "provider": "claude",
