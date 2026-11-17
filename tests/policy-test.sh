@@ -102,7 +102,7 @@ unset RESV
 # --- quota-reserve.sh check／use：QP_STATE（Claude）、QP_CODEX_TSV（Codex）注入目前週 reset ---
 RESV="$T/rv.json"; mkdir -p "$T/home"
 qr() { HOME="$T/home" QUOTA_RESERVES="$RESV" "$ROOT/bin/quota-reserve.sh" "$@"; }
-R7=$((NOW+DAY*3))
+R7=$(( $(date +%s)+DAY*3 ))  # check 用真實時間判斷週期是否已結束，R7 須在真實未來
 printf '{"cards":[{"provider":"claude","expires":"2099-01-01T00:00:00+00:00","used_at":"2026-10-10T00:00:00+08:00","reset7_before":%s},{"provider":"codex","expires":"2099-01-01T00:00:00+00:00","used_at":"2026-10-10T00:00:00+08:00","reset7_before":%s}],"credits":[]}' $R7 $R7 > "$RESV"
 st 10 $((NOW+3600)) 40 $((R7+300)) $NOW
 eq "check：Claude 週 reset 只差 5 分鐘 → 未重開週期" 1 "$(QP_STATE="$T/s.json" qr check | grep -c '^claude.*未變')"
@@ -112,6 +112,8 @@ eq "check：Codex 週 reset 相同 → 未重開週期" 1 "$(QP_CODEX_TSV="0 0 $
 eq "check：Codex 週 reset 往後跳 → 用卷重開週期" 1 "$(QP_CODEX_TSV="0 0 $((NOW+3600)) $((R7+DAY*5))" qr check | grep -c '^codex.*已改變')"
 eq "check：讀不到 Codex（QP_CODEX_TSV=-）" 1 "$(QP_CODEX_TSV=- qr check | grep -c '^codex：讀不到目前週 reset')"
 eq "check：讀不到 Claude（QP_STATE 指向不存在的檔）" 1 "$(QP_STATE="$T/nope.json" qr check | grep -c '^claude：讀不到目前週 reset')"
+printf '{"cards":[{"provider":"codex","expires":"2099-01-01T00:00:00+00:00","used_at":"2026-10-10T00:00:00+08:00","reset7_before":%s}],"credits":[]}' $(( $(date +%s)-60 )) > "$RESV"
+eq "check：用卷當時的週期已結束 → 無法判斷" 1 "$(QP_CODEX_TSV="0 0 $((NOW+3600)) $((R7+DAY*5))" qr check | grep -c '^codex.*無法判斷')"
 printf '{"cards":[{"provider":"claude","expires":"2099-01-01T00:00:00+00:00","used_at":null}],"credits":[]}' > "$RESV"
 QP_STATE="$T/s.json" qr use claude >/dev/null
 eq "use：記下 QP_STATE 的週 reset 當 reset7_before" "$((R7+DAY*4))" "$(python3 -c 'import json,sys; print(int(json.load(open(sys.argv[1]))["cards"][0]["reset7_before"]))' "$RESV")"
