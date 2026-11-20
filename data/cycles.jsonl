@@ -17,3 +17,4 @@
 {"p": "claude", "kind": "end", "t": 1794571042, "left": 26.0, "gap_h": 0.3}
 {"p": "claude", "kind": "zero", "t": 1794898868, "left": 42.0}
 {"p": "codex", "kind": "end", "t": 1795023597, "left": 31.0, "gap_h": 0.5}
+{"p": "claude", "kind": "end", "t": 1795176012, "left": 60.0, "gap_h": 0.2}
