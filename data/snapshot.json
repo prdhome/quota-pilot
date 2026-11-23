@@ -1,5 +1,5 @@
 {
- "generated_at": 1795469988,
+ "generated_at": 1795471795,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -24,7 +24,7 @@
   "claude_surplus": "32",
   "claude_reset_h": "86",
   "claude_proj7": "35",
-  "claude_runway_h": "399",
+  "claude_runway_h": "401",
   "claude_cards": "1",
   "codex_raw": "rich",
   "codex_policy": "rich",
@@ -48,7 +48,7 @@
    "resets_at": 1795780800.0
   },
   "updated_at": 1795459787,
-  "surplus": 31.6
+  "surplus": 31.9
  },
  "codex": {
   "five": {
@@ -59,7 +59,7 @@
    "used": 42.0,
    "resets_at": 1795629818.0
   },
-  "surplus": 31.6
+  "surplus": 31.9
  },
  "cards": [
   {
