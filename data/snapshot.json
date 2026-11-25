@@ -1,59 +1,65 @@
 {
- "generated_at": 1795565766,
+ "generated_at": 1795567573,
  "mode": {
-  "mode": "5",
+  "mode": "1",
   "hub": "opus",
   "route": "delegate",
   "subagent": "sonnet",
-  "claude": "unknown",
+  "claude": "rich",
   "codex": "rich",
   "override": "weekend-codex",
   "card": "-"
  },
  "explain": [
-  "claude: unknown — stale 19.8h → default opus",
-  "codex:  rich — 5h left 93% week left 50% surplus 39",
-  "matrix: (unknown,rich) → mode 5; override weekend-codex → route delegate"
+  "claude: rich — week elapsed 65% used 24% surplus 41 (tight ≤ -15 or week left < 15; rich ≥ 15); 5h left 77%",
+  "codex:  rich — 5h left 78% week left 48% surplus 38",
+  "matrix: (rich,rich) → mode 1; override weekend-codex → route delegate"
  ],
  "detail": {
-  "claude_raw": "unknown",
-  "claude_policy": "unknown",
-  "claude_fresh": "stale",
+  "claude_raw": "rich",
+  "claude_policy": "rich",
+  "claude_fresh": "fresh",
+  "claude_left5": "77",
+  "claude_left7": "76",
+  "claude_surplus": "41",
+  "claude_reset_h": "59",
+  "claude_proj7": "37",
+  "claude_runway_h": "344",
   "claude_cards": "1",
   "codex_raw": "rich",
   "codex_policy": "rich",
   "codex_fresh": "fresh",
-  "codex_left5": "93",
-  "codex_left7": "50",
-  "codex_surplus": "39",
-  "codex_reset_h": "18",
-  "codex_proj7": "56",
-  "codex_runway_h": "150",
+  "codex_left5": "78",
+  "codex_left7": "48",
+  "codex_surplus": "38",
+  "codex_reset_h": "17",
+  "codex_proj7": "58",
+  "codex_runway_h": "139",
   "codex_cards": "2"
  },
  "effort": null,
  "claude": {
   "five": {
-   "used": 0.0,
-   "resets_at": 1795494600.0
+   "used": 23.0,
+   "resets_at": 1795581000.0
   },
   "week": {
-   "used": 21.0,
+   "used": 24.0,
    "resets_at": 1795780800.0
   },
-  "updated_at": 1795494566,
-  "surplus": 43.4
+  "updated_at": 1795567567,
+  "surplus": 40.7
  },
  "codex": {
   "five": {
-   "used": 7.0,
-   "resets_at": 1795581016.0
+   "used": 22.0,
+   "resets_at": 1795581015.0
   },
   "week": {
-   "used": 50.0,
+   "used": 52.0,
    "resets_at": 1795629818.0
   },
-  "surplus": 39.4
+  "surplus": 37.7
  },
  "cards": [
   {
