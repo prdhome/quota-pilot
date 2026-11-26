@@ -667,3 +667,4 @@
 {"t": 1795647086, "mode": 5, "route": "delegate", "hub": "opus", "override": "-", "card": "-", "ct": "unknown", "xt": "rich", "cr": 1795780800.0, "xr": 1796235083.0, "c5": 0.0, "c7": 24.0, "cs": 53.9, "x5": 10.0, "x7": 2.0, "xs": 0.8}
 {"t": 1795648893, "mode": 5, "route": "delegate", "hub": "opus", "override": "-", "card": "-", "ct": "unknown", "xt": "rich", "cr": 1795780800.0, "xr": 1796235083.0, "c5": 0.0, "c7": 24.0, "cs": 54.2, "x5": 0.0, "x7": 2.0, "xs": 1.1}
 {"t": 1795650700, "mode": 5, "route": "delegate", "hub": "opus", "override": "-", "card": "-", "ct": "unknown", "xt": "rich", "cr": 1795780800.0, "xr": 1796235083.0, "c5": 0.0, "c7": 24.0, "cs": 54.5, "x5": 5.0, "x7": 2.0, "xs": 1.4}
+{"t": 1795652507, "mode": 5, "route": "delegate", "hub": "opus", "override": "-", "card": "-", "ct": "unknown", "xt": "rich", "cr": 1795780800.0, "xr": 1796235083.0, "c5": 0.0, "c7": 24.0, "cs": 54.8, "x5": 5.0, "x7": 2.0, "xs": 1.7}
