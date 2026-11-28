@@ -1,5 +1,5 @@
 {
- "generated_at": 1795847639,
+ "generated_at": 1795849445,
  "mode": {
   "mode": "1",
   "hub": "opus",
@@ -33,9 +33,9 @@
   "codex_left5": "98",
   "codex_left7": "76",
   "codex_surplus": "12",
-  "codex_reset_h": "108",
-  "codex_proj7": "67",
-  "codex_runway_h": "191",
+  "codex_reset_h": "107",
+  "codex_proj7": "66",
+  "codex_runway_h": "193",
   "codex_cards": "2"
  },
  "effort": null,
@@ -49,7 +49,7 @@
    "resets_at": 1795780800.0
   },
   "updated_at": 1795777791,
-  "surplus": 11.1
+  "surplus": 11.4
  },
  "codex": {
   "five": {
@@ -60,7 +60,7 @@
    "used": 24.0,
    "resets_at": 1796235083.0
   },
-  "surplus": 11.9
+  "surplus": 12.2
  },
  "cards": [
   {
